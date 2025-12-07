@@ -12,8 +12,7 @@ class LeverProvider:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.get(url); r.raise_for_status(); data = r.json() or []
             for j in data:
-                job_id = str(j.get("id"))
-                title = j.get("text") or j.get("title") or ""
+                job_id = str(j.get("id")); title = j.get("text") or j.get("title") or ""
                 location = (j.get("categories") or {}).get("location")
                 url = j.get("hostedUrl") or j.get("applyUrl") or ""
                 remote = "remote" in (location or "").lower() or "remote" in title.lower()
@@ -23,4 +22,5 @@ class LeverProvider:
                     except Exception: dt=None
                 desc = j.get("descriptionPlain") or j.get("description") or ""
                 yield Job(id=f"lever:{company.org}:{job_id}", title=title, company=company.name or company.org or "unknown",
-                          url=url, location=location, remote=remote, created_at=dt, provider=self.name, extra={"description": desc})
+                          url=url, location=location, remote=remote, created_at=dt, provider=self.name,
+                          extra={"description": desc})

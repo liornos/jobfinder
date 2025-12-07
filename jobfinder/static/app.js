@@ -1,84 +1,30 @@
 const qs = (sel) => document.querySelector(sel);
 const qsa = (sel) => Array.from(document.querySelectorAll(sel));
-
-let companies = [];
-let jobs = [];
-
-function renderCompanies() {
-  const body = qs("#companiesBody");
-  body.innerHTML = "";
-  companies.forEach((c, i) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="p-2"><input type="checkbox" class="rowSel" data-i="${i}"></td>
-      <td class="p-2">${c.name || ""}</td>
-      <td class="p-2">${c.provider || ""}</td>
-      <td class="p-2">${c.org || ""}</td>
-    `;
-    body.appendChild(tr);
-  });
-}
-
-function renderJobs() {
-  const body = qs("#jobsBody");
-  body.innerHTML = "";
-  qs("#jobsCount").textContent = jobs.length;
-  jobs.forEach((j) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="p-2">${j.score ?? ""}</td>
-      <td class="p-2">${j.title || ""}</td>
-      <td class="p-2">${j.company || ""}</td>
-      <td class="p-2">${j.location || ""}</td>
-      <td class="p-2">${j.provider || ""}</td>
-      <td class="p-2"><a class="text-blue-600 underline" target="_blank" rel="noopener" href="${j.url}">open</a></td>
-    `;
-    body.appendChild(tr);
-  });
-}
-
-async function discover() {
-  const msg = qs("#discoverMsg");
-  msg.textContent = "Discovering...";
-  const cities = qs("#cities").value.split(",").map(s => s.trim()).filter(Boolean);
-  const keywords = qs("#keywords").value.split(",").map(s => s.trim()).filter(Boolean);
-  const sources = Array.from(qs("#sources").selectedOptions).map(o => o.value);
-  const limit = parseInt(qs("#limit").value || "25", 10);
-  try {
-    const r = await fetch("/discover", {
-      method: "POST",
-      headers: {"content-type":"application/json"},
-      body: JSON.stringify({cities, keywords, sources, limit})
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      msg.textContent = data.error || "Discover failed";
-      return;
-    }
-    companies = data.companies || [];
-    renderCompanies();
-    msg.textContent = `Found ${companies.length} companies`;
-  } catch (e) {
-    msg.textContent = "Network error";
-  }
-}
-
-async function scanSelected() {
-  const selected = qsa(".rowSel:checked").map(cb => companies[parseInt(cb.dataset.i, 10)]);
-  if (!selected.length) return;
-  const cities = qs("#cities").value.split(",").map(s => s.trim()).filter(Boolean);
-  const keywords = qs("#keywords").value.split(",").map(s => s.trim()).filter(Boolean);
-  const body = { cities, keywords, companies: selected };
-  const r = await fetch("/scan", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body)});
-  const data = await r.json();
-  if (!r.ok) { alert(data.error || "Scan failed"); return; }
-  jobs = data.results || [];
-  renderJobs();
-}
-
-qs("#btnDiscover").addEventListener("click", discover);
-qs("#btnScanSelected").addEventListener("click", scanSelected);
-qs("#btnClear").addEventListener("click", () => { companies=[]; jobs=[]; renderCompanies(); renderJobs(); });
-qs("#selectAll").addEventListener("change", (e) => { qsa(".rowSel").forEach(cb => cb.checked = e.target.checked); });
-
-renderCompanies(); renderJobs();
+let companies=[], jobs=[], filtered=[], page=1, pageSize=50;
+let sortSpec=[{key:'score',dir:'desc'}]; let lastScanIds=new Set(), newIds=new Set();
+function saveLocal(k,v){localStorage.setItem(k,JSON.stringify(v))} function loadLocal(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
+function renderCompanies(){const b=qs('#companiesBody'); b.innerHTML=''; companies.forEach((c,i)=>{const tr=document.createElement('tr'); tr.innerHTML=`<td class="p-2"><input type="checkbox" class="rowSel" data-i="${i}"></td><td class="p-2">${c.name||''}</td><td class="p-2">${c.provider||''}</td><td class="p-2">${c.org||''}</td>`; b.appendChild(tr);});}
+function fmtDate(iso){ if(!iso) return ''; const d=new Date(iso); return d.toISOString().slice(0,10); }
+function sanitize(html){const d=document.createElement('div'); d.innerHTML=html||''; d.querySelectorAll('script,style').forEach(n=>n.remove()); return d.textContent||d.innerText||'';}
+function extractSkills(job){const kws=(qs('#keywords').value||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean); const text=`${job.title} ${sanitize(job.extra?.description||'')}`.toLowerCase(); const hits=new Set(); for(const k of kws) if(text.includes(k)) hits.add(k); return Array.from(hits).slice(0,20);}
+function openDrawer(job){const el=qs('#drawer'); const d=qs('#drawerContent'); const skills=extractSkills(job); d.innerHTML=`<h3 class="text-xl font-semibold mb-1">${job.title}</h3><div class="text-sm text-gray-600 mb-3">${job.company} • ${job.location||'N/A'} • ${job.provider}</div><div class="flex flex-wrap gap-1 mb-3">${skills.map(s=>`<span class="text-xs bg-gray-100 rounded px-2 py-1">${s}</span>`).join(' ')}</div><div class="text-sm mb-2">Reasons: ${job.reasons||''}</div><div class="prose max-w-none text-sm whitespace-pre-wrap">${sanitize(job.extra?.description||'')}</div>`; el.classList.remove('hidden');}
+qs('#closeDrawer').addEventListener('click',()=>qs('#drawer').classList.add('hidden')); qs('#drawer').addEventListener('click',(e)=>{if(e.target.id==='drawer') qs('#drawer').classList.add('hidden');});
+function renderJobs(){const prov=qs('#fltProvider').value; const remote=qs('#fltRemote').value; const minScore=parseInt(qs('#fltScore').value||'0'); const minSalary=parseInt(qs('#fltSalary').value||'0'); const onlyNew=qs('#onlyNew').checked;
+  filtered=jobs.filter(j=>{ if(prov&&(j.provider||'')!==prov) return false; if(remote!=='any' && String(Boolean(j.remote))!==(remote==='true'?'true':'false')) return false; if((j.score||0)<minScore) return false; const smin=j.extra?.salary_min||0, smax=j.extra?.salary_max||0; if(minSalary && Math.max(smin,smax)<minSalary) return false; if(onlyNew && !newIds.has(j.id)) return false; return true; });
+  filtered.sort((a,b)=>{ for(const s of sortSpec){const av=(a[s.key]??''), bv=(b[s.key]??''); const cmp=(av>bv)-(av<bv); if(cmp!==0) return s.dir==='asc'?cmp:-cmp;} return 0; });
+  pageSize=parseInt(qs('#pageSize').value||'50'); const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize)); if(page>totalPages) page=totalPages; const start=(page-1)*pageSize; const rows=filtered.slice(start,start+pageSize);
+  const body=qs('#jobsBody'); body.innerHTML=''; rows.forEach(j=>{const tr=document.createElement('tr'); tr.className='hover:bg-gray-50 cursor-pointer'; tr.addEventListener('click',()=>openDrawer(j)); tr.innerHTML=`<td class="p-2">${j.score??''}</td><td class="p-2">${j.title||''}</td><td class="p-2">${j.company||''}</td><td class="p-2">${j.location||''}</td><td class="p-2">${j.provider||''}</td><td class="p-2">${fmtDate(j.created_at)}</td><td class="p-2"><a class="text-blue-600 underline" target="_blank" rel="noopener" href="${j.url}" onclick="event.stopPropagation()">open</a></td>`; body.appendChild(tr);});
+  qs('#jobsCount').textContent=filtered.length; qs('#newCount').textContent=newIds.size; qs('#pageInfo').textContent=`${page} / ${totalPages}`; }
+async function discover(){const msg=qs('#discoverMsg'); msg.textContent='Discovering...'; const cities=qs('#cities').value.split(',').map(s=>s.trim()).filter(Boolean); const keywords=qs('#keywords').value.split(',').map(s=>s.trim()).filter(Boolean); const sources=Array.from(qs('#sources').selectedOptions).map(o=>o.value); const limit=parseInt(qs('#limit').value||'50',10);
+  try{const r=await fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({cities,keywords,sources,limit})}); const data=await r.json(); if(!r.ok){msg.textContent=data.error||'Discover failed';return;} companies=data.companies||[]; renderCompanies(); msg.textContent=`Found ${companies.length} companies`; saveSearchSelect();}catch(e){msg.textContent='Network error';}}
+function selectedCompanies(){return qsa('.rowSel:checked').map(cb=>companies[parseInt(cb.dataset.i,10)])}
+async function scanSelected(){const selected=selectedCompanies(); if(!selected.length) return; const cities=qs('#cities').value.split(',').map(s=>s.trim()).filter(Boolean); const keywords=qs('#keywords').value.split(',').map(s=>s.trim()).filter(Boolean); const radius_km=parseFloat(qs('#radius').value||'0'); const body={cities,keywords,companies:selected,geo: radius_km>0?{cities,radius_km}:undefined,provider:(qs('#fltProvider').value||undefined),remote:qs('#fltRemote').value||'any',min_score:parseInt(qs('#fltScore').value||'0'),max_age_days:(qs('#fltAge').value?parseInt(qs('#fltAge').value):undefined)};
+  const r=await fetch('/scan',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); const data=await r.json(); if(!r.ok){alert(data.error||'Scan failed'); return;} const prev=new Set(loadLocal('lastScanIds',[])); lastScanIds=prev; jobs=data.results||[]; const cur=new Set(jobs.map(j=>j.id)); newIds=new Set([...cur].filter(x=>!prev.has(x))); saveLocal('lastScanIds',[...cur]); page=1; renderJobs(); }
+function saveCurrentSearch(){const key=prompt('Save search as name:',''); if(!key) return; const val={cities:qs('#cities').value,keywords:qs('#keywords').value,sources:Array.from(qs('#sources').selectedOptions).map(o=>o.value),limit:qs('#limit').value,radius:qs('#radius').value,fltProvider:qs('#fltProvider').value,fltRemote:qs('#fltRemote').value,fltScore:qs('#fltScore').value,fltAge:qs('#fltAge').value,fltSalary:qs('#fltSalary').value}; const all=loadLocal('savedSearches',{}); all[key]=val; saveLocal('savedSearches',all); saveSearchSelect(); }
+function saveSearchSelect(){const sel=qs('#savedSearches'); const all=loadLocal('savedSearches',{}); sel.innerHTML=`<option value="">-- Saved searches --</option>`+Object.keys(all).map(k=>`<option>${k}</option>`).join(''); sel.onchange=()=>{const v=sel.value; if(!v) return; const s=loadLocal('savedSearches',{})[v]; qs('#cities').value=s.cities||''; qs('#keywords').value=s.keywords||''; Array.from(qs('#sources').options).forEach(o=>o.selected=(s.sources||[]).includes(o.value)); qs('#limit').value=s.limit||'50'; qs('#radius').value=s.radius||'0'; qs('#fltProvider').value=s.fltProvider||''; qs('#fltRemote').value=s.fltRemote||'any'; qs('#fltScore').value=s.fltScore||'0'; qs('#fltAge').value=s.fltAge||''; qs('#fltSalary').value=s.fltSalary||''; }; }
+function setupSort(){qsa('th.sort').forEach(th=>{th.addEventListener('click',e=>{const key=th.dataset.key; const shift=e.shiftKey; const existing=sortSpec.find(s=>s.key===key); if(existing){existing.dir=existing.dir==='asc'?'desc':'asc';} else { if(!shift) sortSpec=[]; sortSpec.push({key,dir:'asc'});} renderJobs();});});}
+function setupPaging(){qs('#prevPage').addEventListener('click',()=>{if(page>1){page--; renderJobs();}}); qs('#nextPage').addEventListener('click',()=>{page++; renderJobs();}); qs('#pageSize').addEventListener('change',()=>{page=1; renderJobs();});}
+function setupAutoRefresh(){const chk=qs('#autoRefresh'); const sel=qs('#refreshInterval'); let timer=null; const update=()=>{if(timer){clearInterval(timer); timer=null;} if(chk.checked){timer=setInterval(()=>{scanSelected();},parseInt(sel.value,10)*1000);} }; chk.addEventListener('change',update); sel.addEventListener('change',update); update();}
+qs('#btnDiscover').addEventListener('click',discover); qs('#btnScanSelected').addEventListener('click',scanSelected); qs('#btnClear').addEventListener('click',()=>{companies=[]; jobs=[]; renderCompanies(); renderJobs();}); qs('#selectAll').addEventListener('change',e=>{qsa('.rowSel').forEach(cb=>cb.checked=e.target.checked);}); qs('#btnSaveSearch').addEventListener('click',saveCurrentSearch);
+['#fltProvider','#fltRemote','#fltScore','#fltAge','#fltSalary','#onlyNew'].forEach(id=>{qs(id).addEventListener('change',renderJobs)});
+window.addEventListener('load',()=>{renderCompanies(); renderJobs(); setupSort(); setupPaging(); setupAutoRefresh(); saveSearchSelect();});

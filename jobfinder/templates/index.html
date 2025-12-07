@@ -3,17 +3,27 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>jobfinder • Companies & Jobs</title>
+  <title>jobfinder 0.3.0 • Companies & Jobs</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 text-gray-900">
   <div class="max-w-7xl mx-auto p-6">
-    <header class="mb-6">
-      <h1 class="text-3xl font-bold">jobfinder</h1>
-      <p class="text-sm text-gray-600">Discover companies & fetch jobs from ATS providers</p>
+    <header class="mb-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold">jobfinder <span class="text-xs align-top text-gray-500">0.3.0</span></h1>
+        <p class="text-sm text-gray-600">Discover companies & fetch jobs from ATS providers</p>
+      </div>
+      <div class="text-sm">
+        <label class="inline-flex items-center gap-2"><input id="autoRefresh" type="checkbox"> Auto refresh</label>
+        <select id="refreshInterval" class="border rounded px-2 py-1 ml-2">
+          <option value="60">1m</option>
+          <option value="300" selected>5m</option>
+          <option value="900">15m</option>
+        </select>
+      </div>
     </header>
 
-    <section class="grid md:grid-cols-3 gap-4 mb-6">
+    <section class="grid lg:grid-cols-3 gap-4 mb-6">
       <div class="p-4 bg-white rounded-2xl shadow">
         <h2 class="font-semibold mb-2">Discover</h2>
         <label class="block text-sm">Cities (comma)</label>
@@ -24,18 +34,67 @@
         <select id="sources" class="w-full border rounded px-3 py-2 mb-3" multiple>
           <option selected>greenhouse</option>
           <option selected>lever</option>
+          <option>ashby</option>
+          <option>smartrecruiters</option>
         </select>
         <label class="block text-sm">Limit</label>
-        <input id="limit" type="number" value="25" class="w-full border rounded px-3 py-2 mb-3">
+        <input id="limit" type="number" value="50" class="w-full border rounded px-3 py-2 mb-3">
         <button id="btnDiscover" class="w-full rounded-2xl px-3 py-2 bg-black text-white">Discover</button>
         <p id="discoverMsg" class="text-xs text-gray-500 mt-2"></p>
+        <div class="mt-3">
+          <button id="btnSaveSearch" class="rounded px-2 py-1 border text-sm">Save search</button>
+          <select id="savedSearches" class="border rounded px-2 py-1 text-sm mt-1 w-full"></select>
+        </div>
       </div>
 
-      <div class="p-4 bg-white rounded-2xl shadow md:col-span-2">
+      <div class="p-4 bg-white rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Scan Filters</h2>
+        <label class="block text-sm">Geofence radius (km, 0 = off)</label>
+        <input id="radius" type="number" value="0" class="w-full border rounded px-3 py-2 mb-3">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-sm">Provider</label>
+            <select id="fltProvider" class="w-full border rounded px-3 py-2">
+              <option value="">Any</option>
+              <option>greenhouse</option>
+              <option>lever</option>
+              <option>ashby</option>
+              <option>smartrecruiters</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm">Remote</label>
+            <select id="fltRemote" class="w-full border rounded px-3 py-2">
+              <option value="any">Any</option>
+              <option value="true">Remote</option>
+              <option value="false">Onsite</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-2">
+          <div>
+            <label class="block text-sm">Min score</label>
+            <input id="fltScore" type="number" value="0" class="w-full border rounded px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm">Max age (days)</label>
+            <input id="fltAge" type="number" value="" class="w-full border rounded px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm">Min salary</label>
+            <input id="fltSalary" type="number" value="" class="w-full border rounded px-3 py-2">
+          </div>
+        </div>
+        <div class="mt-3">
+          <button id="btnScanSelected" class="rounded-2xl px-3 py-2 border">Scan selected</button>
+          <label class="ml-3 text-sm inline-flex items-center gap-2"><input id="onlyNew" type="checkbox"> Only new</label>
+        </div>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl shadow">
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold">Companies</h2>
           <div class="space-x-2">
-            <button id="btnScanSelected" class="rounded-xl px-3 py-2 border">Scan selected</button>
             <button id="btnClear" class="rounded-xl px-3 py-2 border">Clear</button>
           </div>
         </div>
@@ -56,19 +115,30 @@
     </section>
 
     <section class="p-4 bg-white rounded-2xl shadow">
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="font-semibold">Jobs</h2>
-        <div class="text-sm text-gray-600"><span id="jobsCount">0</span> results</div>
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-semibold">Jobs</div>
+        <div class="flex items-center gap-2 text-sm">
+          <div><span id="jobsCount">0</span> results (<span id="newCount">0</span> new)</div>
+          <label>Page size
+            <select id="pageSize" class="border rounded px-1 py-0.5">
+              <option>25</option><option selected>50</option><option>100</option>
+            </select>
+          </label>
+          <button id="prevPage" class="border rounded px-2 py-1">Prev</button>
+          <span id="pageInfo">1 / 1</span>
+          <button id="nextPage" class="border rounded px-2 py-1">Next</button>
+        </div>
       </div>
       <div class="overflow-auto">
         <table class="min-w-full text-sm" id="jobsTable">
           <thead class="bg-gray-100">
             <tr>
-              <th class="p-2">Score</th>
-              <th class="p-2">Title</th>
-              <th class="p-2">Company</th>
-              <th class="p-2">Location</th>
-              <th class="p-2">Provider</th>
+              <th class="p-2 sort" data-key="score">Score</th>
+              <th class="p-2 sort" data-key="title">Title</th>
+              <th class="p-2 sort" data-key="company">Company</th>
+              <th class="p-2 sort" data-key="location">Location</th>
+              <th class="p-2 sort" data-key="provider">Provider</th>
+              <th class="p-2 sort" data-key="created_at">Date</th>
               <th class="p-2">Link</th>
             </tr>
           </thead>
@@ -76,6 +146,13 @@
         </table>
       </div>
     </section>
+  </div>
+
+  <div id="drawer" class="hidden fixed inset-0 bg-black/30">
+    <div class="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-xl p-6 overflow-y-auto">
+      <button id="closeDrawer" class="border rounded px-2 py-1 mb-4">Close</button>
+      <div id="drawerContent"></div>
+    </div>
   </div>
 
   <script src="{{ url_for('web.static', filename='app.js') }}"></script>
