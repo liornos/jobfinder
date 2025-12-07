@@ -6,8 +6,9 @@ Find companies by city and pull open roles from public ATS boards (Greenhouse, L
 - **Web UI** (served at `/`) to browse companies and jobs
 
 ---
+<img width="1245" height="925" alt="image" src="https://github.com/user-attachments/assets/52888b52-faf6-4b11-a154-2327e9b8ddf7" />
 
-## TL;DR (Windows PowerShell)
+## For Windows PowerShell
 
 ```powershell
 # 1) Setup
@@ -261,6 +262,7 @@ discovery:
 MIT
 
 ---
+
 
 ## Changelog
 - **0.2.0** — Web UI added; API mounts UI at `/`.
