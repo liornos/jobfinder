@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 from flask import Flask, jsonify, request
 from . import __version__
 from .config import load_config
-from .models import Company, Job
-from .pipeline import fetch_jobs_for_companies, filter_and_rank
+from .models import Company
+from .pipeline import fetch_jobs_for_companies, filter_and_rank, enrich_jobs_with_geo
 from .search import discover_companies
 from .web import web_bp
 
@@ -74,14 +74,33 @@ def create_app(config_path: Optional[str] = None) -> Flask:
                             "expected_company_fields": ["name","city","provider","org","careers_url"]}), 400
         if not companies:
             return jsonify({"error": "No valid companies parsed"}), 400
+
         cities = data.get("cities") or cfg.defaults.cities or []
         keywords = data.get("keywords") or cfg.defaults.keywords or []
-        top = int(data.get("top") or 0)
+        geo = data.get("geo") or {}
+        radius_km = float(geo.get("radius_km") or 0) or None
+        geo_cities = list(map(str, (geo.get("cities") or cities))) if radius_km else []
+
+        server_filters = {
+            "provider": data.get("provider"),
+            "remote": data.get("remote"),
+            "min_score": data.get("min_score"),
+            "max_age_days": data.get("max_age_days"),
+        }
+
         async def _run():
-            jobs: List[Job] = await fetch_jobs_for_companies(companies)
-            rows = filter_and_rank(jobs, cities=list(map(str, cities)), keywords=list(map(str, keywords)))
+            jobs = await fetch_jobs_for_companies(companies)
+            centers = None
+            if radius_km and geo_cities:
+                jobs, centers = await enrich_jobs_with_geo(jobs, geo_cities)
+            rows = await filter_and_rank(jobs, cities=list(map(str, cities)),
+                                         keywords=list(map(str, keywords)),
+                                         geo_centers=centers, radius_km=radius_km,
+                                         server_filters=server_filters)
+            top = int(data.get("top") or 0)
             if top and top > 0: rows[:] = rows[:top]
             return rows
+
         rows = asyncio.run(_run())
         return jsonify({"count": len(rows), "results": rows})
     return app

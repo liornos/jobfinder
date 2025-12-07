@@ -5,9 +5,9 @@ import typer
 from rich import print
 from rich.table import Table
 from .config import load_config
-from .models import Company, Job
-from .pipeline import fetch_jobs_for_companies, filter_and_rank
-from .storage import export_csv, init_sqlite, upsert_jobs_sqlite
+from .models import Company
+from .pipeline import fetch_jobs_for_companies, filter_and_rank, enrich_jobs_with_geo
+from .storage import export_csv, init_sqlite, upsert_rows_sqlite
 from .search import discover_companies
 
 app = typer.Typer(add_completion=False, help="Find new jobs via public ATS endpoints")
@@ -23,8 +23,7 @@ def _load_companies_csv(path: str) -> List[Company]:
     return items
 
 @app.command()
-def discover(cities: str="", keywords: str="", sources: str="greenhouse,lever", limit: int=50,
-             out: Optional[str]=None, config: Optional[str]=None):
+def discover(cities: str="", keywords: str="", sources: str="greenhouse,lever", limit: int=50, out: Optional[str]=None, config: Optional[str]=None):
     cfg = load_config(config)
     cs=[c.strip() for c in (cities or ",".join(cfg.defaults.cities)).split(",") if c.strip()]
     ks=[k.strip() for k in (keywords or ",".join(cfg.defaults.keywords)).split(",") if k.strip()]
@@ -40,15 +39,18 @@ def discover(cities: str="", keywords: str="", sources: str="greenhouse,lever", 
     asyncio.run(_run())
 
 @app.command()
-def scan(companies_file: str, cities: str="", keywords: str="", out: Optional[str]=None,
-         save_sqlite: Optional[str]=None, top: int=0, config: Optional[str]=None):
+def scan(companies_file: str, cities: str="", keywords: str="", radius_km: float = typer.Option(0.0, help="Geofence radius km (0=off)"),
+         out: Optional[str]=None, save_sqlite: Optional[str]=None, top: int=0, config: Optional[str]=None):
     cfg=load_config(config)
     cs=[c.strip() for c in (cities or ",".join(cfg.defaults.cities)).split(",") if c.strip()]
     ks=[k.strip() for k in (keywords or ",".join(cfg.defaults.keywords)).split(",") if k.strip()]
     comps=_load_companies_csv(companies_file)
     async def _run():
         jobs=await fetch_jobs_for_companies(comps)
-        rows=filter_and_rank(jobs, cities=cs, keywords=ks)
+        centers=None
+        if radius_km and cs:
+            jobs, centers = await enrich_jobs_with_geo(jobs, cs)
+        rows=await filter_and_rank(jobs, cities=cs, keywords=ks, geo_centers=centers, radius_km=radius_km or None)
         if top and top>0: rows[:]=rows[:top]
         if out or cfg.output.csv:
             dst=out or cfg.output.csv; assert dst is not None
@@ -56,18 +58,7 @@ def scan(companies_file: str, cities: str="", keywords: str="", out: Optional[st
         if save_sqlite or cfg.output.sqlite:
             dbp=save_sqlite or cfg.output.sqlite; assert dbp is not None
             conn=init_sqlite(dbp)
-            from datetime import datetime
-            _jobs: List[Job]=[]
-            for r in rows:
-                dt=None
-                if r.get("created_at"):
-                    try: dt=datetime.fromisoformat(str(r["created_at"]))
-                    except Exception: dt=None
-                _jobs.append(Job(id=str(r["id"]), title=str(r["title"]), company=str(r["company"]),
-                                 url=str(r["url"]), location=r.get("location"),
-                                 remote=bool(r.get("remote")) if r.get("remote") is not None else None,
-                                 created_at=dt, provider=r.get("provider"), extra=r.get("extra")))
-            upsert_jobs_sqlite(conn, _jobs)
+            upsert_rows_sqlite(conn, rows)
     asyncio.run(_run())
 
 if __name__ == "__main__": app()
