@@ -1,1 +1,6 @@
 jobfinder
+providers
+search
+static
+templates
+utils

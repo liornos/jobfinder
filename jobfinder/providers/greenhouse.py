@@ -12,8 +12,7 @@ class GreenhouseProvider:
         async with httpx.AsyncClient(timeout=30) as client:
             r = await client.get(url); r.raise_for_status(); data = r.json() or {}
             for j in data.get("jobs", []):
-                job_id = str(j.get("id"))
-                title = j.get("title") or ""
+                job_id = str(j.get("id")); title = j.get("title") or ""
                 location = (j.get("location") or {}).get("name")
                 url = j.get("absolute_url") or ""
                 remote = "remote" in (location or "").lower() or "remote" in title.lower()
@@ -24,4 +23,5 @@ class GreenhouseProvider:
                     except Exception: dt = None
                 desc = j.get("content") or ""
                 yield Job(id=f"greenhouse:{company.org}:{job_id}", title=title, company=company.name or company.org or "unknown",
-                          url=url, location=location, remote=remote, created_at=dt, provider=self.name, extra={"description": desc})
+                          url=url, location=location, remote=remote, created_at=dt, provider=self.name,
+                          extra={"description": desc})
