@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>jobfinder • Companies & Jobs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">jobfinder</h1>
+      <p class="text-sm text-gray-600">Discover companies & fetch jobs from ATS providers</p>
+    </header>
+
+    <section class="grid md:grid-cols-3 gap-4 mb-6">
+      <div class="p-4 bg-white rounded-2xl shadow">
+        <h2 class="font-semibold mb-2">Discover</h2>
+        <label class="block text-sm">Cities (comma)</label>
+        <input id="cities" class="w-full border rounded px-3 py-2 mb-2" placeholder="Tel Aviv, New York">
+        <label class="block text-sm">Keywords (comma)</label>
+        <input id="keywords" class="w-full border rounded px-3 py-2 mb-2" placeholder="software, ai">
+        <label class="block text-sm">Sources</label>
+        <select id="sources" class="w-full border rounded px-3 py-2 mb-3" multiple>
+          <option selected>greenhouse</option>
+          <option selected>lever</option>
+        </select>
+        <label class="block text-sm">Limit</label>
+        <input id="limit" type="number" value="25" class="w-full border rounded px-3 py-2 mb-3">
+        <button id="btnDiscover" class="w-full rounded-2xl px-3 py-2 bg-black text-white">Discover</button>
+        <p id="discoverMsg" class="text-xs text-gray-500 mt-2"></p>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl shadow md:col-span-2">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-semibold">Companies</h2>
+          <div class="space-x-2">
+            <button id="btnScanSelected" class="rounded-xl px-3 py-2 border">Scan selected</button>
+            <button id="btnClear" class="rounded-xl px-3 py-2 border">Clear</button>
+          </div>
+        </div>
+        <div class="overflow-auto max-h-64">
+          <table class="min-w-full text-sm" id="companiesTable">
+            <thead class="sticky top-0 bg-gray-100">
+              <tr>
+                <th class="p-2"><input type="checkbox" id="selectAll"></th>
+                <th class="p-2 text-left">Name</th>
+                <th class="p-2 text-left">Provider</th>
+                <th class="p-2 text-left">Org</th>
+              </tr>
+            </thead>
+            <tbody id="companiesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="p-4 bg-white rounded-2xl shadow">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-semibold">Jobs</h2>
+        <div class="text-sm text-gray-600"><span id="jobsCount">0</span> results</div>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm" id="jobsTable">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-2">Score</th>
+              <th class="p-2">Title</th>
+              <th class="p-2">Company</th>
+              <th class="p-2">Location</th>
+              <th class="p-2">Provider</th>
+              <th class="p-2">Link</th>
+            </tr>
+          </thead>
+          <tbody id="jobsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="{{ url_for('web.static', filename='app.js') }}"></script>
+</body>
+</html>
