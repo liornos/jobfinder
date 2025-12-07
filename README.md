@@ -7,14 +7,22 @@ Find companies by city and pull open roles from public ATS boards (Greenhouse, L
 
 ---
 <img width="1245" height="925" alt="image" src="https://github.com/user-attachments/assets/52888b52-faf6-4b11-a154-2327e9b8ddf7" />
-
+## 1) Setup 
 ## For Windows PowerShell
 
 ```powershell
-# 1) Setup
+
 py -m venv .venv
 . .\.venv\Scripts\Activate.ps1
 pip install -e .
+
+## For Linux\Mac
+
+```bash
+# macOS/Linux
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
 
 # 2) If you want "Discover", set SerpAPI key (not needed for "Scan")
 $env:SERPAPI_API_KEY = "YOUR_REAL_KEY"
@@ -34,22 +42,7 @@ jobfinder-api         # http://localhost:8000
 
 ---
 
-## Install
 
-```bash
-# macOS/Linux
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
-```
-
-```powershell
-# Windows PowerShell
-py -m venv .venv
-. .\.venv\Scripts\Activate.ps1
-pip install -e .
-```
-
-> **Note:** In PowerShell do **not** use `export VAR=...`. Use `$env:VAR="value"`.
 
 ---
 
