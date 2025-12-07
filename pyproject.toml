@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobfinder"
-version = "0.2.0"
-description = "Async CLI + Flask API + Web UI to discover companies and fetch jobs from ATS providers"
+version = "0.3.0"
+description = "CLI + Flask API + Web UI for discovering companies and fetching jobs from ATS providers"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -18,19 +18,14 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "flask>=3.0.0",
 ]
-
 [project.optional-dependencies]
 extras = ["rapidfuzz>=3.9.1"]
-
 [project.scripts]
 jobfinder = "jobfinder.cli:app"
 jobfinder-api = "jobfinder.api:main"
-
 [tool.setuptools]
 include-package-data = true
-
 [tool.setuptools.package-data]
 jobfinder = ["templates/*.html", "static/*", "static/**/*"]
-
 [tool.setuptools.packages.find]
 where = ["."]
