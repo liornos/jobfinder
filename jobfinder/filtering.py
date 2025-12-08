@@ -29,14 +29,24 @@ def _extract_salary(desc: str):
 def score(job: Job, keywords: List[str], cities: List[str], center_points=None, radius_km: Optional[float]=None) -> Tuple[int, List[str]]:
     s=0; reasons=[]
     t = normalize(job.title); loc = normalize(job.location or ""); desc = normalize((job.extra or {}).get("description","")[:4000])
+    # keyword/title/desc
     for kw in keywords:
         k=normalize(kw)
         if k in t: s+=20; reasons.append(f"title:{k}")
         if k and fuzz:
             s+=int(0.2*fuzz.partial_ratio(k,t)); s+=int(0.1*fuzz.partial_ratio(k,desc))
             if k in desc: reasons.append(f"desc:{k}")
+    # city
     if cities and any(normalize(c) in loc for c in cities): s+=15; reasons.append("city")
-    if job.remote: s+=5; reasons.append("remote")
+    # work mode
+    wm = ((job.extra or {}).get("work_mode") or "").lower()
+    if wm == "remote":
+        s += 5; reasons.append("remote")
+    elif wm == "hybrid":
+        s += 4; reasons.append("hybrid")
+    elif job.remote:  # legacy fallback
+        s += 5; reasons.append("remote")
+    # freshness
     if job.created_at:
         import datetime as _dt
         try:
@@ -44,8 +54,10 @@ def score(job: Job, keywords: List[str], cities: List[str], center_points=None, 
             s += max(0, 30 - days); reasons.append(f"fresh-{days}d")
         except Exception:
             pass
+    # salary presence
     sal_min = (job.extra or {}).get("salary_min"); sal_max = (job.extra or {}).get("salary_max")
     if sal_min or sal_max: s+=5; reasons.append("salary")
+    # geofence
     lat=(job.extra or {}).get("lat"); lon=(job.extra or {}).get("lon")
     if center_points and radius_km and lat is not None and lon is not None:
         for clat, clon in center_points:
@@ -57,14 +69,25 @@ def score(job: Job, keywords: List[str], cities: List[str], center_points=None, 
 def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
     out=[]
     prov = set(map(str.lower, filters.get("provider", []))) if filters.get("provider") else (set([filters.get("provider")]) if filters.get("provider") else None)
-    remote = filters.get("remote")
+    remote = (filters.get("remote") or "").lower() if filters.get("remote") is not None else None
     min_score = filters.get("min_score")
     max_age_days = filters.get("max_age_days")
     for r in rows:
         if prov and str(r.get("provider","")).lower() not in prov: continue
-        if remote in ("true","false"):
-            want = remote == "true"
-            if bool(r.get("remote")) != want: continue
+        if remote in ("true","false","hybrid"):
+            wm = ((r.get("extra") or {}).get("work_mode") or "").lower()
+            if remote == "hybrid":
+                if wm != "hybrid": continue
+            elif remote == "true":
+                if wm:
+                    if wm != "remote": continue
+                else:
+                    if not bool(r.get("remote")): continue
+            elif remote == "false":
+                if wm:
+                    if wm != "onsite": continue
+                else:
+                    if bool(r.get("remote")): continue
         if min_score is not None and (r.get("score") or 0) < int(min_score): continue
         if max_age_days is not None and r.get("created_at"):
             try:

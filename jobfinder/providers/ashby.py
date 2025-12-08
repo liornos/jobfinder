@@ -3,9 +3,11 @@ from datetime import datetime
 from typing import AsyncIterator
 import httpx, re
 from ..models import Job, Company
+
 class AshbyProvider:
     name = "ashby"
     API = "https://jobs.ashbyhq.com/api/postings/{org}?limit=100&offset=0"
+
     async def jobs(self, company: Company) -> AsyncIterator[Job]:
         if not company.org: return
         url = self.API.format(org=company.org)
@@ -18,10 +20,6 @@ class AshbyProvider:
                 title = j.get("title") or j.get("jobTitle") or ""
                 location = j.get("locationName") or j.get("location") or (j.get("jobLocation") or {}).get("name")
                 url = j.get("jobUrl") or j.get("applyUrl") or j.get("url") or ""
-                remote = False
-                for fld in (title, location, str(j)):
-                    if fld and re.search(r"\bremote|hybrid\b", str(fld), re.I):
-                        remote = True; break
                 created_at = j.get("createdAt") or j.get("updatedAt")
                 dt = None
                 if created_at:
@@ -33,6 +31,22 @@ class AshbyProvider:
                     except Exception:
                         dt = None
                 desc = j.get("descriptionHtml") or j.get("description") or j.get("sectionsText") or ""
-                yield Job(id=f"ashby:{company.org}:{job_id}", title=title, company=company.name or company.org or "unknown",
-                          url=url, location=location, remote=remote, created_at=dt, provider=self.name,
-                          extra={"description": desc})
+                text = f"{title} {location or ''} {desc}".lower()
+                if "remote" in text:
+                    work_mode = "remote"
+                elif "hybrid" in text or re.search(r"\bhybrid\b", text):
+                    work_mode = "hybrid"
+                else:
+                    work_mode = "onsite"
+                remote = "remote" in text  # legacy bool
+                yield Job(
+                    id=f"ashby:{company.org}:{job_id}",
+                    title=title,
+                    company=company.name or company.org or "unknown",
+                    url=url,
+                    location=location,
+                    remote=remote,
+                    created_at=dt,
+                    provider=self.name,
+                    extra={"description": desc, "work_mode": work_mode},
+                )
