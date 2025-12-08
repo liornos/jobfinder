@@ -1,3 +1,6 @@
+// jobfinder/static/app.js
+console.log("[jobfinder] app.js loaded");
+
 const qs = (sel) => document.querySelector(sel);
 const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -6,15 +9,48 @@ let jobs = [];
 let filtered = [];
 let page = 1;
 let pageSize = 50;
-let sortSpec = [{ key: "score", dir: "desc" }]; // Shift+click to add multi-sort
+let sortSpec = [{ key: "score", dir: "desc" }];
 let lastScanIds = new Set();
 let newIds = new Set();
+let initialized = false;
 
 function saveLocal(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 function loadLocal(key, def){ try{ return JSON.parse(localStorage.getItem(key)) ?? def }catch{ return def } }
 
+function setDiscoverMsg(text, kind="info") {
+  const el = qs("#discoverMsg"); if (!el) return;
+  el.textContent = text || "";
+  el.className = "mt-3 text-base font-semibold";
+  if (kind === "error") el.classList.add("text-red-600");
+  else if (kind === "ok") el.classList.add("text-green-700");
+  else el.classList.add("text-gray-800");
+}
+
+function setScanLoading(isLoading, text="Scanning...") {
+  const btn = qs("#btnScanSelected");
+  const txt = qs("#scanBtnText");
+  const spn = qs("#scanSpinner");
+  const msg = qs("#scanMsg");
+  if (!btn) return;
+  if (isLoading) {
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    btn.classList.add("opacity-70", "cursor-not-allowed");
+    if (txt) txt.textContent = text;
+    if (spn) spn.classList.remove("hidden");
+    if (msg) { msg.textContent = text; msg.className = "text-sm mt-2 text-gray-800 font-semibold"; }
+  } else {
+    btn.disabled = false;
+    btn.removeAttribute("aria-busy");
+    btn.classList.remove("opacity-70", "cursor-not-allowed");
+    if (txt) txt.textContent = "Scan selected";
+    if (spn) spn.classList.add("hidden");
+    if (msg) { msg.textContent = ""; msg.className = "text-sm text-gray-600 mt-2"; }
+  }
+}
+
 function renderCompanies() {
-  const body = document.querySelector("#companiesBody");
+  const body = qs("#companiesBody");
   if (!body) return;
   body.innerHTML = "";
   companies.forEach((c, i) => {
@@ -50,7 +86,7 @@ function sanitize(html) {
 }
 
 function extractSkills(job) {
-  const kwEl = document.querySelector("#keywords");
+  const kwEl = qs("#keywords");
   const kws = (kwEl?.value || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
   const text = `${job.title} ${sanitize(job.extra?.description || "")}`.toLowerCase();
   const hits = new Set();
@@ -66,8 +102,8 @@ function badgeWorkMode(job) {
 }
 
 function openDrawer(job) {
-  const el = document.querySelector("#drawer");
-  const d = document.querySelector("#drawerContent");
+  const el = qs("#drawer");
+  const d = qs("#drawerContent");
   if (!el || !d) return;
   const skills = extractSkills(job);
   d.innerHTML = `
@@ -85,10 +121,6 @@ function openDrawer(job) {
   el.classList.remove("hidden");
 }
 
-function closeDrawerIfBackdrop(e) {
-  if (e.target.id === "drawer") document.querySelector("#drawer")?.classList.add("hidden");
-}
-
 function matchRemote(job, sel) {
   const wm = (job.extra?.work_mode || "").toLowerCase();
   if (sel === "any") return true;
@@ -99,11 +131,11 @@ function matchRemote(job, sel) {
 }
 
 function renderJobs() {
-  const prov = document.querySelector("#fltProvider")?.value || "";
-  const remoteSel = document.querySelector("#fltRemote")?.value || "any";
-  const minScore = parseInt(document.querySelector("#fltScore")?.value || "0");
-  const minSalary = parseInt(document.querySelector("#fltSalary")?.value || "0");
-  const onlyNew = !!document.querySelector("#onlyNew")?.checked;
+  const prov = qs("#fltProvider")?.value || "";
+  const remoteSel = qs("#fltRemote")?.value || "any";
+  const minScore = parseInt(qs("#fltScore")?.value || "0");
+  const minSalary = parseInt(qs("#fltSalary")?.value || "0");
+  const onlyNew = !!qs("#onlyNew")?.checked;
 
   filtered = jobs.filter(j => {
     if (prov && (j.provider||"") !== prov) return false;
@@ -126,13 +158,13 @@ function renderJobs() {
     return 0;
   });
 
-  pageSize = parseInt(document.querySelector("#pageSize")?.value || "50");
+  pageSize = parseInt(qs("#pageSize")?.value || "50");
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   if (page > totalPages) page = totalPages;
   const start = (page-1)*pageSize;
   const rows = filtered.slice(start, start+pageSize);
 
-  const body = document.querySelector("#jobsBody");
+  const body = qs("#jobsBody");
   if (!body) return;
   body.innerHTML = "";
   rows.forEach((j) => {
@@ -151,18 +183,18 @@ function renderJobs() {
     body.appendChild(tr);
   });
 
-  const jobsCount = document.querySelector("#jobsCount"); if (jobsCount) jobsCount.textContent = String(filtered.length);
-  const newCount = document.querySelector("#newCount"); if (newCount) newCount.textContent = String(newIds.size);
-  const pageInfo = document.querySelector("#pageInfo"); if (pageInfo) pageInfo.textContent = `${page} / ${totalPages}`;
+  qs("#jobsCount") && (qs("#jobsCount").textContent = String(filtered.length));
+  qs("#newCount") && (qs("#newCount").textContent = String(newIds.size));
+  qs("#pageInfo") && (qs("#pageInfo").textContent = `${page} / ${totalPages}`);
 }
 
 async function discover() {
-  const msg = document.querySelector("#discoverMsg");
-  if (msg) msg.textContent = "Discovering...";
-  const cities = (document.querySelector("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const keywords = (document.querySelector("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const sources = Array.from(document.querySelector("#sources")?.selectedOptions || []).map(o => o.value);
-  const limit = parseInt(document.querySelector("#limit")?.value || "50", 10);
+  setDiscoverMsg("Discovering...", "info");
+  console.log("[jobfinder] Discover clicked");
+  const cities = (qs("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
+  const keywords = (qs("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
+  const sources = Array.from(qs("#sources")?.selectedOptions || []).map(o => o.value);
+  const limit = parseInt(qs("#limit")?.value || "50", 10);
   try {
     const r = await fetch("/discover", {
       method: "POST",
@@ -170,56 +202,64 @@ async function discover() {
       body: JSON.stringify({cities, keywords, sources, limit})
     });
     const data = await r.json();
-    if (!r.ok) { if (msg) msg.textContent = data.error || "Discover failed"; return; }
+    if (!r.ok) { setDiscoverMsg(data.error || "Discover failed", "error"); return; }
     companies = data.companies || [];
     renderCompanies();
-    if (msg) msg.textContent = `Found ${companies.length} companies`;
-    saveSearchSelect();
+    setDiscoverMsg(`Found ${companies.length} companies`, "ok");
   } catch (e) {
-    if (msg) msg.textContent = "Network error";
+    console.error("[jobfinder] Discover error", e);
+    setDiscoverMsg("Network error", "error");
   }
 }
 
 function selectedCompanies() {
-  return Array.from(document.querySelectorAll(".rowSel:checked")).map(cb => companies[parseInt(cb.dataset.i, 10)]);
+  return qsa(".rowSel:checked").map(cb => companies[parseInt(cb.dataset.i, 10)]);
 }
 
 async function scanSelected() {
+  console.log("[jobfinder] Scan clicked");
   const selected = selectedCompanies();
-  if (!selected.length) return;
-  const cities = (document.querySelector("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const keywords = (document.querySelector("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const radius_km = parseFloat(document.querySelector("#radius")?.value || "0");
+  if (!selected.length) { setDiscoverMsg("Select at least one company", "error"); return; }
+  const cities = (qs("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
+  const keywords = (qs("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
+  const radius_km = parseFloat(qs("#radius")?.value || "0");
   const body = {
     cities, keywords, companies: selected,
     geo: radius_km > 0 ? { cities, radius_km } : undefined,
-    provider: (document.querySelector("#fltProvider")?.value || undefined),
-    remote: document.querySelector("#fltRemote")?.value || "any",
-    min_score: parseInt(document.querySelector("#fltScore")?.value || "0"),
-    max_age_days: (document.querySelector("#fltAge")?.value ? parseInt(document.querySelector("#fltAge").value) : undefined)
+    provider: (qs("#fltProvider")?.value || undefined),
+    remote: qs("#fltRemote")?.value || "any",
+    min_score: parseInt(qs("#fltScore")?.value || "0"),
+    max_age_days: (qs("#fltAge")?.value ? parseInt(qs("#fltAge").value) : undefined)
   };
-  const r = await fetch("/scan", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body)});
-  const data = await r.json();
-  if (!r.ok) { alert(data.error || "Scan failed"); return; }
-  const prev = new Set(loadLocal("lastScanIds", []));
-  lastScanIds = prev;
-  jobs = data.results || [];
-  const curIds = new Set(jobs.map(j => j.id));
-  newIds = new Set([...curIds].filter(x => !prev.has(x)));
-  saveLocal("lastScanIds", [...curIds]);
-  page = 1;
-  renderJobs();
+  setScanLoading(true);
+  try {
+    const r = await fetch("/scan", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body)});
+    const data = await r.json();
+    if (!r.ok) { alert(data.error || "Scan failed"); return; }
+    const prev = new Set(loadLocal("lastScanIds", []));
+    lastScanIds = prev;
+    jobs = data.results || [];
+    const curIds = new Set(jobs.map(j => j.id));
+    newIds = new Set([...curIds].filter(x => !prev.has(x)));
+    saveLocal("lastScanIds", [...curIds]);
+    page = 1;
+    renderJobs();
+  } catch (e) {
+    console.error("[jobfinder] Scan error", e);
+  } finally {
+    setScanLoading(false);
+  }
 }
 
 function saveCurrentSearch() {
   const key = prompt("Save search as name:", "");
   if (!key) return;
   const val = {
-    cities: document.querySelector("#cities")?.value, keywords: document.querySelector("#keywords")?.value,
-    sources: Array.from(document.querySelector("#sources")?.selectedOptions || []).map(o=>o.value), limit: document.querySelector("#limit")?.value,
-    radius: document.querySelector("#radius")?.value,
-    fltProvider: document.querySelector("#fltProvider")?.value, fltRemote: document.querySelector("#fltRemote")?.value,
-    fltScore: document.querySelector("#fltScore")?.value, fltAge: document.querySelector("#fltAge")?.value, fltSalary: document.querySelector("#fltSalary")?.value
+    cities: qs("#cities")?.value, keywords: qs("#keywords")?.value,
+    sources: Array.from(qs("#sources")?.selectedOptions || []).map(o=>o.value), limit: qs("#limit")?.value,
+    radius: qs("#radius")?.value,
+    fltProvider: qs("#fltProvider")?.value, fltRemote: qs("#fltRemote")?.value,
+    fltScore: qs("#fltScore")?.value, fltAge: qs("#fltAge")?.value, fltSalary: qs("#fltSalary")?.value
   };
   const all = loadLocal("savedSearches", {});
   all[key] = val; saveLocal("savedSearches", all);
@@ -227,28 +267,28 @@ function saveCurrentSearch() {
 }
 
 function saveSearchSelect() {
-  const sel = document.querySelector("#savedSearches"); if (!sel) return;
+  const sel = qs("#savedSearches"); if (!sel) return;
   const all = loadLocal("savedSearches", {});
   sel.innerHTML = `<option value="">-- Saved searches --</option>` + Object.keys(all).map(k=>`<option>${escapeHtml(k)}</option>`).join("");
   sel.onchange = () => {
     const v = sel.value; if (!v) return;
     const s = loadLocal("savedSearches", {})[v];
     if (!s) return;
-    const cities = document.querySelector("#cities"); if (cities) cities.value = s.cities || "";
-    const keywords = document.querySelector("#keywords"); if (keywords) keywords.value = s.keywords || "";
-    const sources = document.querySelector("#sources"); if (sources) Array.from(sources.options).forEach(o => o.selected = (s.sources||[]).includes(o.value));
-    const limit = document.querySelector("#limit"); if (limit) limit.value = s.limit || "50";
-    const radius = document.querySelector("#radius"); if (radius) radius.value = s.radius || "0";
-    const fp = document.querySelector("#fltProvider"); if (fp) fp.value = s.fltProvider || "";
-    const fr = document.querySelector("#fltRemote"); if (fr) fr.value = s.fltRemote || "any";
-    const fs = document.querySelector("#fltScore"); if (fs) fs.value = s.fltScore || "0";
-    const fa = document.querySelector("#fltAge"); if (fa) fa.value = s.fltAge || "";
-    const fsa = document.querySelector("#fltSalary"); if (fsa) fsa.value = s.fltSalary || "";
+    qs("#cities") && (qs("#cities").value = s.cities || "");
+    qs("#keywords") && (qs("#keywords").value = s.keywords || "");
+    const src = qs("#sources"); if (src) Array.from(src.options).forEach(o => o.selected = (s.sources||[]).includes(o.value));
+    qs("#limit") && (qs("#limit").value = s.limit || "50");
+    qs("#radius") && (qs("#radius").value = s.radius || "0");
+    qs("#fltProvider") && (qs("#fltProvider").value = s.fltProvider || "");
+    qs("#fltRemote") && (qs("#fltRemote").value = s.fltRemote || "any");
+    qs("#fltScore") && (qs("#fltScore").value = s.fltScore || "0");
+    qs("#fltAge") && (qs("#fltAge").value = s.fltAge || "");
+    qs("#fltSalary") && (qs("#fltSalary").value = s.fltSalary || "");
   };
 }
 
 function setupSort() {
-  Array.from(document.querySelectorAll("th.sort")).forEach(th => {
+  qsa("th.sort").forEach(th => {
     th.addEventListener("click", (e) => {
       const key = th.dataset.key;
       const shift = e.shiftKey;
@@ -265,17 +305,14 @@ function setupSort() {
 }
 
 function setupPaging() {
-  const prev = document.querySelector("#prevPage");
-  const next = document.querySelector("#nextPage");
-  if (prev) prev.addEventListener("click", () => { if (page>1){ page--; renderJobs(); }});
-  if (next) next.addEventListener("click", () => { page++; renderJobs(); });
-  const ps = document.querySelector("#pageSize");
-  if (ps) ps.addEventListener("change", () => { page=1; renderJobs(); });
+  qs("#prevPage")?.addEventListener("click", () => { if (page>1){ page--; renderJobs(); }});
+  qs("#nextPage")?.addEventListener("click", () => { page++; renderJobs(); });
+  qs("#pageSize")?.addEventListener("change", () => { page=1; renderJobs(); });
 }
 
 function setupAutoRefresh() {
-  const chk = document.querySelector("#autoRefresh");
-  const sel = document.querySelector("#refreshInterval");
+  const chk = qs("#autoRefresh");
+  const sel = qs("#refreshInterval");
   let timer = null;
   const update = () => {
     if (timer) { clearInterval(timer); timer = null; }
@@ -283,19 +320,22 @@ function setupAutoRefresh() {
       timer = setInterval(() => { scanSelected(); }, parseInt(sel.value,10)*1000);
     }
   };
-  if (chk) chk.addEventListener("change", update);
-  if (sel) sel.addEventListener("change", update);
+  chk && chk.addEventListener("change", update);
+  sel && sel.addEventListener("change", update);
   update();
 }
 
 function setupDrawer() {
-  const close = document.querySelector("#closeDrawer");
-  const drawer = document.querySelector("#drawer");
-  if (close) close.addEventListener("click", () => drawer?.classList.add("hidden"));
-  if (drawer) drawer.addEventListener("click", closeDrawerIfBackdrop);
+  const close = qs("#closeDrawer");
+  const drawer = qs("#drawer");
+  close && close.addEventListener("click", () => drawer?.classList.add("hidden"));
+  drawer && drawer.addEventListener("click", (e) => { if (e.target.id === "drawer") drawer.classList.add("hidden"); });
 }
 
 function init() {
+  if (initialized) return;
+  initialized = true;
+  console.log("[jobfinder] init");
   renderCompanies();
   renderJobs();
   setupSort();
@@ -304,15 +344,16 @@ function init() {
   setupDrawer();
   saveSearchSelect();
 
-  document.querySelector("#btnDiscover")?.addEventListener("click", discover);
-  document.querySelector("#btnScanSelected")?.addEventListener("click", scanSelected);
-  document.querySelector("#btnClear")?.addEventListener("click", () => { companies=[]; jobs=[]; renderCompanies(); renderJobs(); });
-  document.querySelector("#selectAll")?.addEventListener("change", (e) => { Array.from(document.querySelectorAll(".rowSel")).forEach(cb => cb.checked = e.target.checked); });
+  qs("#btnDiscover")?.addEventListener("click", discover);
+  qs("#btnScanSelected")?.addEventListener("click", scanSelected);
+  qs("#btnClear")?.addEventListener("click", () => { companies=[]; jobs=[]; renderCompanies(); renderJobs(); });
+  qs("#selectAll")?.addEventListener("change", (e) => { qsa(".rowSel").forEach(cb => cb.checked = e.target.checked); });
 
   ["#fltProvider","#fltRemote","#fltScore","#fltAge","#fltSalary","#onlyNew"].forEach(id => {
-    const el = document.querySelector(id); if (el) el.addEventListener("change", renderJobs);
+    const el = qs(id); if (el) el.addEventListener("change", renderJobs);
   });
-  document.querySelector("#btnSaveSearch")?.addEventListener("click", saveCurrentSearch);
+  qs("#btnSaveSearch")?.addEventListener("click", saveCurrentSearch);
 }
 
+document.addEventListener("DOMContentLoaded", init);
 window.addEventListener("load", init);
