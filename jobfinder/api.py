@@ -77,15 +77,17 @@ def create_app(config_path: Optional[str] = None) -> Flask:
 
         cities = data.get("cities") or cfg.defaults.cities or []
         keywords = data.get("keywords") or cfg.defaults.keywords or []
-        geo = data.get("geo") or {}
+        geo = data.get("geo") or {}  # {"cities":[...], "radius_km": 25}
         radius_km = float(geo.get("radius_km") or 0) or None
         geo_cities = list(map(str, (geo.get("cities") or cities))) if radius_km else []
 
+        # Include cities in server filters so scan respects selected cities
         server_filters = {
             "provider": data.get("provider"),
             "remote": data.get("remote"),
             "min_score": data.get("min_score"),
             "max_age_days": data.get("max_age_days"),
+            "cities": cities,  # enforce city filtering
         }
 
         async def _run():

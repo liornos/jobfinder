@@ -33,12 +33,20 @@ def load_config(path: Optional[str] = None) -> AppConfig:
     data: Dict[str, Any] = {}
     if cfg_path and cfg_path.exists():
         data = yaml.safe_load(cfg_path.read_text()) or {}
-    defaults = data.get("defaults", {})
-    output = data.get("output", {})
-    discovery = data.get("discovery", {})
+
+    defaults = data.get("defaults", {}) or {}
+    output = data.get("output", {}) or {}
+    discovery = data.get("discovery", {}) or {}
+
+    # Defaults if not provided by user config:
+    cities = defaults.get("cities") or ["Tel Aviv", "herzliya"]
+    keywords = defaults.get("keywords") or ["software"]
+    sources = discovery.get("sources") or ["greenhouse", "lever", "ashby", "smartrecruiters"]
+    limit = int(discovery.get("limit", 50))
+
     return AppConfig(
-        defaults=Defaults(defaults.get("cities", []), defaults.get("keywords", [])),
+        defaults=Defaults(cities, keywords),
         output=OutputCfg(output.get("csv"), output.get("sqlite")),
-        discovery=DiscoveryCfg(discovery.get("sources", ["greenhouse","lever","ashby","smartrecruiters"]), int(discovery.get("limit", 50))),
+        discovery=DiscoveryCfg(sources, limit),
         env=dict(os.environ),
     )

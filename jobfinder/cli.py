@@ -23,13 +23,15 @@ def _load_companies_csv(path: str) -> List[Company]:
     return items
 
 @app.command()
-def discover(cities: str="", keywords: str="", sources: str="greenhouse,lever", limit: int=50, out: Optional[str]=None, config: Optional[str]=None):
+def discover(cities: str="", keywords: str="", sources: str="", limit: int=0, out: Optional[str]=None, config: Optional[str]=None):
+    """Discover companies; default sources=all, cities/keywords from config if omitted."""
     cfg = load_config(config)
     cs=[c.strip() for c in (cities or ",".join(cfg.defaults.cities)).split(",") if c.strip()]
     ks=[k.strip() for k in (keywords or ",".join(cfg.defaults.keywords)).split(",") if k.strip()]
-    srcs=[s.strip().lower() for s in sources.split(",") if s.strip()]
+    srcs=[s.strip().lower() for s in (sources or ",".join(cfg.discovery.sources)).split(",") if s.strip()]
+    lim = int(limit or cfg.discovery.limit or 50)
     async def _run():
-        res = await discover_companies(cs, ks, srcs, limit=limit, api_key=cfg.env.get("SERPAPI_API_KEY"))
+        res = await discover_companies(cs, ks, srcs, limit=lim, api_key=cfg.env.get("SERPAPI_API_KEY"))
         rows=[c.to_dict() for c in res.companies]
         if out:
             export_csv(rows, out); print(f"[green]Wrote {len(rows)} companies to {out}[/]")
@@ -41,6 +43,7 @@ def discover(cities: str="", keywords: str="", sources: str="greenhouse,lever", 
 @app.command()
 def scan(companies_file: str, cities: str="", keywords: str="", radius_km: float = typer.Option(0.0, help="Geofence radius km (0=off)"),
          out: Optional[str]=None, save_sqlite: Optional[str]=None, top: int=0, config: Optional[str]=None):
+    """Scan jobs and filter by selected cities server-side; remote allowed regardless of city."""
     cfg=load_config(config)
     cs=[c.strip() for c in (cities or ",".join(cfg.defaults.cities)).split(",") if c.strip()]
     ks=[k.strip() for k in (keywords or ",".join(cfg.defaults.keywords)).split(",") if k.strip()]
@@ -50,7 +53,8 @@ def scan(companies_file: str, cities: str="", keywords: str="", radius_km: float
         centers=None
         if radius_km and cs:
             jobs, centers = await enrich_jobs_with_geo(jobs, cs)
-        rows=await filter_and_rank(jobs, cities=cs, keywords=ks, geo_centers=centers, radius_km=radius_km or None)
+        server_filters={"cities": cs}  # enforce city filtering for CLI too
+        rows=await filter_and_rank(jobs, cities=cs, keywords=ks, geo_centers=centers, radius_km=radius_km or None, server_filters=server_filters)
         if top and top>0: rows[:]=rows[:top]
         if out or cfg.output.csv:
             dst=out or cfg.output.csv; assert dst is not None
