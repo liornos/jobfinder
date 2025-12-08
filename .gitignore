@@ -25,3 +25,8 @@ top_level.txt
 # Windows launchers (should be under venv/Scripts, not repo)
 jobfinder.exe
 jobfinder-api.exe
+/.venv/
+
+# Packaging metadata
+*.egg-info/
+*.egg-info/**
