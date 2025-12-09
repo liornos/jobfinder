@@ -6,7 +6,7 @@ Find companies by city and pull open roles from public ATS boards (Greenhouse, L
 - **Web UI** (served at `/`) to browse companies and jobs
 
 ---
-<img width="1245" height="925" alt="image" src="https://github.com/user-attachments/assets/52888b52-faf6-4b11-a154-2327e9b8ddf7" />
+<img width="1277" height="927" alt="image" src="https://github.com/user-attachments/assets/46372c9e-5c85-4ae7-b389-95efa7c1f7c9" />
 
 # 1) Setup 
 # For Windows PowerShell
@@ -25,7 +25,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
 
-# 2) If you want "Discover", set SerpAPI key (not needed for "Scan")
+# 2) If you want "Discover" (find companies in specific cities), set SerpAPI key (not needed for "Scan")
 $env:SERPAPI_API_KEY = "YOUR_REAL_KEY"
 
 # 3) Run the server (API + Web UI)
@@ -61,7 +61,7 @@ jobfinder-api         # http://localhost:8000
 PowerShell quick checks:
 ```powershell
 $env:SERPAPI_API_KEY
-dir env: | ? Name -like "*SERPAPI*"
+dir env: | ? Name -like "*SERPAPI*"   # check api key exist
 ```
 
 ---
@@ -73,7 +73,7 @@ dir env: | ? Name -like "*SERPAPI*"
 
 Run:
 ```powershell
-$env:SERPAPI_API_KEY = "YOUR_REAL_KEY"  # only needed for Discover
+$env:SERPAPI_API_KEY = "YOUR_REAL_KEY" 
 jobfinder-api
 # open http://localhost:8000
 ```
