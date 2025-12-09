@@ -1,114 +1,110 @@
+# file: jobfinder/api.py
 from __future__ import annotations
-import asyncio, csv, io, os
-from typing import Any, Dict, List, Optional
-from flask import Flask, jsonify, request
-from . import __version__
-from .config import load_config
-from .models import Company
-from .pipeline import fetch_jobs_for_companies, filter_and_rank, enrich_jobs_with_geo
-from .search import discover_companies
-from .web import web_bp
+import argparse, os
+from typing import Any, Dict, List
 
-def _companies_from_csv_text(csv_text: str) -> List[Company]:
-    buf = io.StringIO(csv_text); reader = csv.DictReader(buf); items: List[Company] = []
-    for row in reader:
-        items.append(Company(name=(row.get("name") or row.get("company") or "").strip(),
-                             city=(row.get("city") or None), provider=(row.get("provider") or None),
-                             org=(row.get("org") or None), careers_url=(row.get("careers_url") or None)))
-    return items
+from flask import Blueprint, Flask, jsonify, render_template, request
 
-def _companies_from_json(objs: List[Dict[str, Any]]) -> List[Company]:
-    items: List[Company] = []
-    for r in objs:
-        items.append(Company(name=str(r.get("name") or r.get("company") or "").strip(),
-                             city=r.get("city"), provider=r.get("provider"), org=r.get("org"),
-                             careers_url=r.get("careers_url")))
-    return items
+# CORS optional (safe if not installed)
+try:
+    from flask_cors import CORS
+except Exception:
+    def CORS(*args, **kwargs):  # no-op
+        return None
 
-def _dedupe_companies(items: List[Company]) -> List[Company]:
-    seen: set[tuple[str, str]] = set(); out: List[Company] = []
-    for c in items:
-        key = (str(c.provider or ""), str(c.org or ""))
-        if key in seen: continue
-        seen.add(key); out.append(c)
-    return out
+from . import filtering, pipeline
+from .logging_utils import setup_logging
 
-def create_app(config_path: Optional[str] = None) -> Flask:
-    app = Flask(__name__)
-    app.register_blueprint(web_bp)
-    cfg = load_config(config_path)
+api = Blueprint("api", __name__)
 
-    @app.get("/health")
-    def health() -> Any:
-        return jsonify({"status": "ok", "version": __version__})
+def _parse_list(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(x).strip() for x in value if str(x).strip()]
+    return [s.strip() for s in str(value).split(",") if s.strip()]
 
-    @app.post("/discover")
-    def api_discover() -> Any:
-        data = request.get_json(silent=True) or {}
-        cities = data.get("cities") or cfg.defaults.cities or []
-        keywords = data.get("keywords") or cfg.defaults.keywords or []
-        sources = data.get("sources") or cfg.discovery.sources or ["greenhouse", "lever"]
-        limit = int(data.get("limit") or cfg.discovery.limit or 50)
-        api_key = cfg.env.get("SERPAPI_API_KEY")
-        if not api_key:
-            return jsonify({"error": "SERPAPI_API_KEY missing in environment"}), 400
-        async def _run():
-            res = await discover_companies(cities=list(map(str, cities)),
-                                           keywords=list(map(str, keywords)),
-                                           sources=[str(s).lower() for s in sources],
-                                           limit=limit, api_key=api_key)
-            return _dedupe_companies(res.companies)
-        comps = asyncio.run(_run())
-        return jsonify({"count": len(comps), "companies": [c.to_dict() for c in comps]})
+@api.route("/discover", methods=["POST"])
+def discover() -> Any:
+    body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+    cities = _parse_list(body.get("cities"))
+    keywords = _parse_list(body.get("keywords"))
+    sources = _parse_list(body.get("sources"))
+    limit = int(body.get("limit") or 50)
 
-    @app.post("/scan")
-    def api_scan() -> Any:
-        data = request.get_json(silent=True) or {}
-        companies: List[Company] = []
-        if "companies" in data and isinstance(data["companies"], list):
-            companies = _dedupe_companies(_companies_from_json(data["companies"]))
-        elif "companies_csv" in data and isinstance(data["companies_csv"], str):
-            companies = _dedupe_companies(_companies_from_csv_text(data["companies_csv"]))
-        else:
-            return jsonify({"error": "Provide either `companies` (list) or `companies_csv` (CSV string).",
-                            "expected_company_fields": ["name","city","provider","org","careers_url"]}), 400
-        if not companies:
-            return jsonify({"error": "No valid companies parsed"}), 400
+    # If you have a pipeline.discover, use it; else just echo back companies via UI discover flow.
+    discover_fn = getattr(pipeline, "discover", None)
+    if callable(discover_fn):
+        try:
+            companies = discover_fn(cities=cities, keywords=keywords, sources=sources or None, limit=limit)
+            return jsonify({"companies": companies})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "discover() not implemented in pipeline"}), 501
 
-        cities = data.get("cities") or cfg.defaults.cities or []
-        keywords = data.get("keywords") or cfg.defaults.keywords or []
-        geo = data.get("geo") or {}  # {"cities":[...], "radius_km": 25}
-        radius_km = float(geo.get("radius_km") or 0) or None
-        geo_cities = list(map(str, (geo.get("cities") or cities))) if radius_km else []
+@api.route("/scan", methods=["POST"])
+def scan() -> Any:
+    body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
 
-        # Include cities in server filters so scan respects selected cities
-        server_filters = {
-            "provider": data.get("provider"),
-            "remote": data.get("remote"),
-            "min_score": data.get("min_score"),
-            "max_age_days": data.get("max_age_days"),
-            "cities": cities,  # enforce city filtering
-        }
+    companies = body.get("companies") or []
+    cities = _parse_list(body.get("cities"))
+    keywords = _parse_list(body.get("keywords"))
+    provider = body.get("provider") or None
+    remote = body.get("remote") or "any"
+    min_score = body.get("min_score") or 0
+    max_age_days = body.get("max_age_days")
+    geo = body.get("geo")
+    title_keywords = _parse_list(body.get("title_keywords") or body.get("title") or body.get("fltTitle"))
 
-        async def _run():
-            jobs = await fetch_jobs_for_companies(companies)
-            centers = None
-            if radius_km and geo_cities:
-                jobs, centers = await enrich_jobs_with_geo(jobs, geo_cities)
-            rows = await filter_and_rank(jobs, cities=list(map(str, cities)),
-                                         keywords=list(map(str, keywords)),
-                                         geo_centers=centers, radius_km=radius_km,
-                                         server_filters=server_filters)
-            top = int(data.get("top") or 0)
-            if top and top > 0: rows[:] = rows[:top]
-            return rows
+    try:
+        results: List[Dict[str, Any]] = pipeline.scan(
+            companies=companies,
+            cities=cities,
+            keywords=keywords,
+            provider=provider,
+            remote=remote,
+            min_score=min_score,
+            max_age_days=max_age_days,
+            geo=geo,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        rows = asyncio.run(_run())
-        return jsonify({"count": len(rows), "results": rows})
+    if title_keywords:
+        results = filtering.filter_by_title_keywords(results, title_keywords)
+
+    return jsonify({"results": results})
+
+# NEW: provider diagnostics endpoint
+@api.route("/debug/providers", methods=["GET"])
+def debug_providers() -> Any:
+    return jsonify(pipeline.diagnose_providers())
+
+def create_app() -> Flask:
+    setup_logging()  # respect LOG_LEVEL
+    app = Flask(__name__, static_folder="static", template_folder="templates")
+    CORS(app)
+    app.register_blueprint(api)
+
+    @app.get("/")
+    def index() -> str:
+        return render_template("index.html")
+
+    @app.get("/healthz")
+    def healthz() -> Any:
+        return jsonify({"ok": True})
     return app
 
-def main() -> None:
-    host = os.getenv("HOST", "0.0.0.0"); port = int(os.getenv("PORT", "8000"))
-    app = create_app(); app.run(host=host, port=port, debug=bool(os.getenv("DEBUG")))
+app = create_app()
 
-if __name__ == "__main__": main()
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(prog="jobfinder-api", description="Run jobfinder Flask API")
+    parser.add_argument("--host", default=os.getenv("HOST", "0.0.0.0"))
+    parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "8000")))
+    parser.add_argument("--debug", action="store_true", default=os.getenv("DEBUG", "").lower() in {"1","true","yes"})
+    args = parser.parse_args(argv)
+    application = create_app()
+    application.run(host=args.host, port=args.port, debug=args.debug)
+
+if __name__ == "__main__":
+    main()

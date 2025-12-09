@@ -1,44 +1,34 @@
+# file: jobfinder/providers/lever.py
 from __future__ import annotations
-from datetime import datetime
-from typing import AsyncIterator
-import httpx
-from ..models import Job, Company
+import datetime as _dt
+from typing import Any, Dict, List, Optional
 
-class LeverProvider:
-    name = "lever"
-    API = "https://api.lever.co/v0/postings/{org}?mode=json"
+from ._http import get_json
 
-    async def jobs(self, company: Company) -> AsyncIterator[Job]:
-        if not company.org: return
-        url = self.API.format(org=company.org)
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.get(url); r.raise_for_status(); data = r.json() or []
-            for j in data:
-                job_id = str(j.get("id"))
-                title = j.get("text") or j.get("title") or ""
-                location = (j.get("categories") or {}).get("location")
-                url = j.get("hostedUrl") or j.get("applyUrl") or ""
-                created_at = j.get("createdAt"); dt=None
-                if created_at:
-                    try: dt = datetime.utcfromtimestamp(int(created_at)/1000.0)
-                    except Exception: dt=None
-                desc = j.get("descriptionPlain") or j.get("description") or ""
-                text = f"{title} {location or ''} {desc}".lower()
-                if "remote" in text:
-                    work_mode = "remote"
-                elif "hybrid" in text:
-                    work_mode = "hybrid"
-                else:
-                    work_mode = "onsite"
-                remote = "remote" in text  # legacy bool
-                yield Job(
-                    id=f"lever:{company.org}:{job_id}",
-                    title=title,
-                    company=company.name or company.org or "unknown",
-                    url=url,
-                    location=location,
-                    remote=remote,
-                    created_at=dt,
-                    provider=self.name,
-                    extra={"description": desc, "work_mode": work_mode},
-                )
+API = "https://jobs.lever.co/{org}.json"
+
+def _ms_to_iso(ms: Optional[int]) -> Optional[str]:
+    if not ms:
+        return None
+    try:
+        return _dt.datetime.utcfromtimestamp(ms / 1000).isoformat() + "Z"
+    except Exception:
+        return None
+
+def fetch_jobs(org: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    data = get_json(API.format(org=org))
+    jobs: List[Dict[str, Any]] = []
+    for j in data or []:
+        loc = (j.get("categories") or {}).get("location")
+        jobs.append({
+            "id": j.get("id") or j.get("data") or j.get("hostedUrl"),
+            "title": j.get("text"),
+            "location": loc,
+            "url": j.get("hostedUrl"),
+            "created_at": _ms_to_iso(j.get("createdAt")) or _ms_to_iso(j.get("updatedAt")),
+            "remote": None,
+            "description": j.get("lists") or "",
+        })
+        if limit and len(jobs) >= limit:
+            break
+    return jobs

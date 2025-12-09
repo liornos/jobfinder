@@ -1,68 +1,61 @@
+# file: jobfinder/cli.py
 from __future__ import annotations
-import asyncio, csv
-from typing import List, Optional
+import json
+from typing import Optional, List
 import typer
-from rich import print
-from rich.table import Table
-from .config import load_config
-from .models import Company
-from .pipeline import fetch_jobs_for_companies, filter_and_rank, enrich_jobs_with_geo
-from .storage import export_csv, init_sqlite, upsert_rows_sqlite
-from .search import discover_companies
+
+from . import filtering, pipeline
+from .logging_utils import setup_logging
 
 app = typer.Typer(add_completion=False, help="Find new jobs via public ATS endpoints")
 
-def _load_companies_csv(path: str) -> List[Company]:
-    items: List[Company] = []
-    with open(path, newline="", encoding="utf-8") as f:
-        r = csv.DictReader(f)
-        for row in r:
-            items.append(Company(name=row.get("name") or row.get("company") or "", city=row.get("city") or None,
-                                 provider=row.get("provider") or None, org=row.get("org") or None,
-                                 careers_url=row.get("careers_url") or None))
-    return items
+def _csv_list(val: Optional[str]) -> List[str]:
+    if not val:
+        return []
+    return [s.strip() for s in val.split(",") if s.strip()]
 
-@app.command()
-def discover(cities: str="", keywords: str="", sources: str="", limit: int=0, out: Optional[str]=None, config: Optional[str]=None):
-    """Discover companies; default sources=all, cities/keywords from config if omitted."""
-    cfg = load_config(config)
-    cs=[c.strip() for c in (cities or ",".join(cfg.defaults.cities)).split(",") if c.strip()]
-    ks=[k.strip() for k in (keywords or ",".join(cfg.defaults.keywords)).split(",") if k.strip()]
-    srcs=[s.strip().lower() for s in (sources or ",".join(cfg.discovery.sources)).split(",") if s.strip()]
-    lim = int(limit or cfg.discovery.limit or 50)
-    async def _run():
-        res = await discover_companies(cs, ks, srcs, limit=lim, api_key=cfg.env.get("SERPAPI_API_KEY"))
-        rows=[c.to_dict() for c in res.companies]
-        if out:
-            export_csv(rows, out); print(f"[green]Wrote {len(rows)} companies to {out}[/]")
-        else:
-            table = Table(title="Discovered Companies"); table.add_column("name"); table.add_column("provider"); table.add_column("org")
-            for r in rows: table.add_row(r["name"], r.get("provider") or "", r.get("org") or ""); print(table)
-    asyncio.run(_run())
+@app.command("scan")
+def scan(
+    companies_json: str = typer.Option(..., help="JSON array of companies from discover"),
+    cities: Optional[str] = typer.Option(None, help="Comma list of cities"),
+    keywords: Optional[str] = typer.Option(None, help="Comma list of content keywords"),
+    provider: Optional[str] = typer.Option(None, help="Restrict to provider"),
+    remote: str = typer.Option("any", help="any|true|false|hybrid"),
+    min_score: int = typer.Option(0, help="Minimum score"),
+    max_age_days: Optional[int] = typer.Option(None, help="Max age in days"),
+    geo_radius_km: Optional[float] = typer.Option(None, help="Geofence radius in km"),
+    title_contains: Optional[str] = typer.Option(None, help='Title contains (comma). e.g. "automation, software"'),
+):
+    setup_logging()
+    companies = json.loads(companies_json)
+    city_list = _csv_list(cities)
+    keyword_list = _csv_list(keywords)
+    title_list = _csv_list(title_contains)
 
-@app.command()
-def scan(companies_file: str, cities: str="", keywords: str="", radius_km: float = typer.Option(0.0, help="Geofence radius km (0=off)"),
-         out: Optional[str]=None, save_sqlite: Optional[str]=None, top: int=0, config: Optional[str]=None):
-    """Scan jobs and filter by selected cities server-side; remote allowed regardless of city."""
-    cfg=load_config(config)
-    cs=[c.strip() for c in (cities or ",".join(cfg.defaults.cities)).split(",") if c.strip()]
-    ks=[k.strip() for k in (keywords or ",".join(cfg.defaults.keywords)).split(",") if k.strip()]
-    comps=_load_companies_csv(companies_file)
-    async def _run():
-        jobs=await fetch_jobs_for_companies(comps)
-        centers=None
-        if radius_km and cs:
-            jobs, centers = await enrich_jobs_with_geo(jobs, cs)
-        server_filters={"cities": cs}  # enforce city filtering for CLI too
-        rows=await filter_and_rank(jobs, cities=cs, keywords=ks, geo_centers=centers, radius_km=radius_km or None, server_filters=server_filters)
-        if top and top>0: rows[:]=rows[:top]
-        if out or cfg.output.csv:
-            dst=out or cfg.output.csv; assert dst is not None
-            export_csv(rows, dst); print(f"[green]Wrote {len(rows)} rows to {dst}[/]")
-        if save_sqlite or cfg.output.sqlite:
-            dbp=save_sqlite or cfg.output.sqlite; assert dbp is not None
-            conn=init_sqlite(dbp)
-            upsert_rows_sqlite(conn, rows)
-    asyncio.run(_run())
+    geo = {"cities": city_list, "radius_km": geo_radius_km} if geo_radius_km else None
 
-if __name__ == "__main__": app()
+    results = pipeline.scan(
+        companies=companies,
+        cities=city_list,
+        keywords=keyword_list,
+        provider=provider,
+        remote=remote,
+        min_score=min_score,
+        max_age_days=max_age_days,
+        geo=geo,
+    )
+    if title_list:
+        results = filtering.filter_by_title_keywords(results, title_list)
+
+    typer.echo(json.dumps({"results": results}, ensure_ascii=False))
+
+# NEW: provider diagnostics from CLI
+@app.command("debug-providers")
+def debug_providers():
+    """
+    Print provider import diagnostics (module paths, errors, sys.path head, cwd).
+    """
+    setup_logging("DEBUG")
+    import json as _json
+    report = pipeline.diagnose_providers()
+    typer.echo(_json.dumps(report, indent=2))
