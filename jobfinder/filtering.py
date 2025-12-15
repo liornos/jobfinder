@@ -1,6 +1,8 @@
 from __future__ import annotations
 import re
+from datetime import datetime, timezone
 from typing import List, Tuple, Optional, Dict, Any
+
 from .models import Job
 from .utils.geo import haversine_km
 try:
@@ -65,6 +67,38 @@ def score(job: Job, keywords: List[str], cities: List[str],
                 s += max(0, int(20 * (1 - (d / radius_km)))); reasons.append(f"geo:{int(d)}km"); break
     return s, reasons
 
+def _parse_created_at(value: Any) -> Optional[datetime]:
+    """Best-effort parser for provider created_at values."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if isinstance(value, (int, float)):
+        try:
+            ts = float(value)
+            # Heuristic: timestamps above 1e11 are usually in milliseconds.
+            if ts > 1e11:
+                ts = ts / 1000.0
+            return datetime.fromtimestamp(ts, tz=timezone.utc)
+        except Exception:
+            return None
+    if isinstance(value, str):
+        v = value.strip()
+        if not v:
+            return None
+        # Handle common "Z" suffix that datetime.fromisoformat rejects.
+        if v.endswith("Z"):
+            v = v[:-1] + "+00:00"
+        try:
+            return datetime.fromisoformat(v)
+        except Exception:
+            pass
+        try:
+            return datetime.strptime(v, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+    return None
+
 def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Server-side filters: provider/remote/min_score/max_age_days + cities."""
     out=[]
@@ -84,7 +118,7 @@ def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[D
             if remote == "hybrid":
                 if wm != "hybrid": continue
             elif remote == "true":
-                if wm: 
+                if wm:
                     if wm != "remote": continue
                 else:
                     if not bool(r.get("remote")): continue
@@ -103,13 +137,12 @@ def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[D
 
         if min_score is not None and (r.get("score") or 0) < int(min_score): continue
 
-        if max_age_days is not None and r.get("created_at"):
-            try:
-                from datetime import datetime, timezone
-                dt = datetime.fromisoformat(str(r["created_at"]))
-                age = (datetime.now(timezone.utc) - (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc))).days
-                if age > int(max_age_days): continue
-            except Exception: pass
+        if max_age_days is not None:
+            dt = _parse_created_at(r.get("created_at"))
+            if dt:
+                age = (datetime.now(timezone.utc) - dt).days
+                if age > int(max_age_days):
+                    continue
 
         out.append(r)
     return out

@@ -134,6 +134,7 @@ function renderJobs() {
   const prov = qs("#fltProvider")?.value || "";
   const remoteSel = qs("#fltRemote")?.value || "any";
   const minScore = parseInt(qs("#fltScore")?.value || "0");
+  const maxAgeDays = parseInt(qs("#fltAge")?.value || "0");
   const minSalary = parseInt(qs("#fltSalary")?.value || "0");
   const onlyNew = !!qs("#onlyNew")?.checked;
 
@@ -141,6 +142,13 @@ function renderJobs() {
     if (prov && (j.provider||"") !== prov) return false;
     if (!matchRemote(j, remoteSel)) return false;
     if ((j.score||0) < minScore) return false;
+    if (maxAgeDays > 0 && j.created_at) {
+      const created = new Date(j.created_at);
+      if (!isNaN(created.getTime())) {
+        const age = Math.floor((Date.now() - created.getTime()) / 86400000);
+        if (age > maxAgeDays) return false;
+      }
+    }
     const smin = Number(j.extra?.salary_min || 0);
     const smax = Number(j.extra?.salary_max || 0);
     if (minSalary && Math.max(smin, smax) < minSalary) return false;
