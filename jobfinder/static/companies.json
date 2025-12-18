@@ -1,0 +1,13 @@
+{
+  "companies": [
+    {"name": "jfrog", "org": "jfrog", "provider": "greenhouse", "city": "Tel Aviv", "careers_url": "https://boards.greenhouse.io/jfrog"},
+    {"name": "orcasecurity", "org": "orcasecurity", "provider": "greenhouse", "city": "Tel Aviv", "careers_url": "https://boards.greenhouse.io/orcasecurity"},
+    {"name": "saltsecurity", "org": "saltsecurity", "provider": "greenhouse", "city": "Tel Aviv", "careers_url": "https://boards.greenhouse.io/saltsecurity"},
+    {"name": "unframe", "org": "unframe", "provider": "greenhouse", "city": "Tel Aviv", "careers_url": "https://boards.greenhouse.io/unframe"},
+    {"name": "palantir", "org": "palantir", "provider": "lever", "city": "Tel Aviv", "careers_url": "https://jobs.lever.co/palantir"},
+    {"name": "walkme", "org": "walkme", "provider": "lever", "city": "Tel Aviv", "careers_url": "https://jobs.lever.co/walkme"},
+    {"name": "entrata", "org": "entrata", "provider": "lever", "city": "Tel Aviv", "careers_url": "https://jobs.lever.co/entrata"},
+    {"name": "tonkean", "org": "tonkean", "provider": "lever", "city": "Tel Aviv", "careers_url": "https://jobs.lever.co/tonkean"},
+    {"name": "coda", "org": "coda", "provider": "lever", "city": "Tel Aviv", "careers_url": "https://jobs.lever.co/coda"}
+  ]
+}

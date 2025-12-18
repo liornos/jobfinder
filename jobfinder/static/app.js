@@ -134,7 +134,6 @@ function renderJobs() {
   const prov = qs("#fltProvider")?.value || "";
   const remoteSel = qs("#fltRemote")?.value || "any";
   const minScore = parseInt(qs("#fltScore")?.value || "0");
-  const maxAgeDays = parseInt(qs("#fltAge")?.value || "0");
   const minSalary = parseInt(qs("#fltSalary")?.value || "0");
   const onlyNew = !!qs("#onlyNew")?.checked;
 
@@ -142,13 +141,6 @@ function renderJobs() {
     if (prov && (j.provider||"") !== prov) return false;
     if (!matchRemote(j, remoteSel)) return false;
     if ((j.score||0) < minScore) return false;
-    if (maxAgeDays > 0 && j.created_at) {
-      const created = new Date(j.created_at);
-      if (!isNaN(created.getTime())) {
-        const age = Math.floor((Date.now() - created.getTime()) / 86400000);
-        if (age > maxAgeDays) return false;
-      }
-    }
     const smin = Number(j.extra?.salary_min || 0);
     const smax = Number(j.extra?.salary_max || 0);
     if (minSalary && Math.max(smin, smax) < minSalary) return false;
@@ -210,13 +202,41 @@ async function discover() {
       body: JSON.stringify({cities, keywords, sources, limit})
     });
     const data = await r.json();
-    if (!r.ok) { setDiscoverMsg(data.error || "Discover failed", "error"); return; }
+    if (!r.ok) {
+      const msg = (data && data.error) ? String(data.error) : "Discover failed";
+      const missing = /SERPAPI.*KEY|MISSING API KEY/i.test(msg);
+      if (missing) {
+        await loadSeedCompanies("SerpAPI key missing; loaded seed data.");
+        return;
+      }
+      setDiscoverMsg(msg, "error");
+      return;
+    }
     companies = data.companies || [];
     renderCompanies();
     setDiscoverMsg(`Found ${companies.length} companies`, "ok");
   } catch (e) {
     console.error("[jobfinder] Discover error", e);
     setDiscoverMsg("Network error", "error");
+  }
+}
+
+async function loadSeedCompanies(reasonText) {
+  setDiscoverMsg("Loading seed companies...", "info");
+  try {
+    const r = await fetch("/static/companies.json", {cache: "no-cache"});
+    const data = await r.json();
+    const list = data?.companies ?? data;
+    if (!Array.isArray(list) || !list.length) {
+      setDiscoverMsg("Seed file empty or invalid", "error");
+      return;
+    }
+    companies = list;
+    renderCompanies();
+    setDiscoverMsg(reasonText || `Loaded ${companies.length} seed companies`, "ok");
+  } catch (e) {
+    console.error("[jobfinder] Seed load error", e);
+    setDiscoverMsg("Failed to load seed companies", "error");
   }
 }
 
