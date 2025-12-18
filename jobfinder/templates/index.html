@@ -30,71 +30,13 @@
         <input id="cities" class="w-full border rounded px-3 py-2 mb-2" value="Tel Aviv, herzliya" placeholder="Tel Aviv, herzliya">
         <label class="block text-sm">Keywords (comma)</label>
         <input id="keywords" class="w-full border rounded px-3 py-2 mb-2" value="software" placeholder="software">
-        <label class="block text-sm">Sources</label>
-        <select id="sources" class="w-full border rounded px-3 py-2 mb-3" multiple>
-          <option selected>greenhouse</option>
-          <option selected>lever</option>
-          <option selected>ashby</option>
-          <option selected>smartrecruiters</option>
-        </select>
-        <label class="block text-sm">Limit</label>
-        <input id="limit" type="number" value="50" class="w-full border rounded px-3 py-2 mb-3">
+        <input id="sources" type="hidden" value="greenhouse,lever,ashby,smartrecruiters">
+        <input id="limit" type="hidden" value="1000">
         <button id="btnDiscover" type="button" class="w-full rounded-2xl px-3 py-2 bg-black text-white">Discover</button>
         <p id="discoverMsg" class="text-base font-semibold mt-3"></p>
       </div>
 
-      <div class="p-4 bg-white rounded-2xl shadow">
-        <h2 class="font-semibold mb-2">Scan Filters</h2>
-        <label class="block text-sm">Geofence radius (km, 0 = off)</label>
-        <input id="radius" type="number" value="0" class="w-full border rounded px-3 py-2 mb-3">
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-sm">Provider</label>
-            <select id="fltProvider" class="w-full border rounded px-3 py-2">
-              <option value="">Any</option>
-              <option>greenhouse</option>
-              <option>lever</option>
-              <option>ashby</option>
-              <option>smartrecruiters</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm">Remote</label>
-            <select id="fltRemote" class="w-full border rounded px-3 py-2">
-              <option value="any">Any</option>
-              <option value="true">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="false">Onsite</option>
-            </select>
-          </div>
-        </div>
-        <div class="grid grid-cols-3 gap-2 mt-2">
-          <div>
-            <label class="block text-sm">Min score</label>
-            <input id="fltScore" type="number" value="0" class="w-full border rounded px-3 py-2">
-          </div>
-          <div>
-            <label class="block text-sm">Max age (days)</label>
-            <input id="fltAge" type="number" value="" class="w-full border rounded px-3 py-2">
-          </div>
-          <div>
-            <label class="block text-sm">Min salary</label>
-            <input id="fltSalary" type="number" value="" class="w-full border rounded px-3 py-2">
-          </div>
-        </div>
-        <div class="mt-4">
-          <button id="btnScanSelected" type="button"
-                  class="w-full rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2"
-                  aria-live="polite">
-            <span id="scanBtnText">Scan selected</span>
-            <span id="scanSpinner" class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-          </button>
-          <p id="scanMsg" class="text-sm text-gray-600 mt-2"></p>
-          <label class="ml-1 text-sm inline-flex items-center gap-2 mt-2"><input id="onlyNew" type="checkbox"> Only new</label>
-        </div>
-      </div>
-
-      <div class="p-4 bg-white rounded-2xl shadow">
+      <div class="p-4 bg-white rounded-2xl shadow" id="companiesPanel" style="display:none;">
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold">Companies</h2>
           <div class="space-x-2">
@@ -113,6 +55,42 @@
             </thead>
             <tbody id="companiesBody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl shadow" id="scanFiltersPanel" style="display:none;">
+        <h2 class="font-semibold mb-2">Scan Filters</h2>
+        <input id="radius" type="hidden" value="0">
+        <input id="fltProvider" type="hidden" value="">
+        <input id="fltSalary" type="hidden" value="">
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-sm">Remote</label>
+            <select id="fltRemote" class="w-full border rounded px-3 py-2">
+              <option value="any">Any</option>
+              <option value="true">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="false">Onsite</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm">Min score</label>
+            <input id="fltScore" type="number" value="0" class="w-full border rounded px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm">Date Publish(days)</label>
+            <input id="fltAge" type="number" value="" class="w-full border rounded px-3 py-2">
+          </div>
+        </div>
+        <div class="mt-4">
+          <button id="btnScanSelected" type="button"
+                  class="w-full rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2"
+                  aria-live="polite">
+            <span id="scanBtnText">Scan selected</span>
+            <span id="scanSpinner" class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          </button>
+          <p id="scanMsg" class="text-sm text-gray-600 mt-2"></p>
+          <label class="ml-1 text-sm inline-flex items-center gap-2 mt-2"><input id="onlyNew" type="checkbox"> Only new</label>
         </div>
       </div>
     </section>
