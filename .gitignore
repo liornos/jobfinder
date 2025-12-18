@@ -1,32 +1,28 @@
-# venvs
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
 .venv/
 venv/
+env/
 
-# IDE
+# Packaging / builds
+*.egg-info/
+dist/
+build/
+
+# IDEs
 .idea/
 .vscode/
 
-# Python cache
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-
-# Build / dist
-build/
-dist/
-*.egg-info/
-*.egg-info/**
-
-# Pip/Egg metadata sometimes leaked to root
-SOURCES.txt
-top_level.txt
-
-# Windows launchers (should be under venv/Scripts, not repo)
-jobfinder.exe
-jobfinder-api.exe
-/.venv/
-
-# Packaging metadata
-*.egg-info/
-*.egg-info/**
+# OS
+.DS_Store
+Thumbs.db
