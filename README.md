@@ -1,79 +1,91 @@
 # jobfinder — CLI + API + Web UI
 
-Find companies by city and pull open roles from public ATS boards (Greenhouse, Lever). Includes:
+Find companies by **city** and pull **open roles** from public ATS boards (**Greenhouse**, **Lever**).
+
+Includes:
 - **CLI** (`jobfinder`) for discovery + scanning
-- **Flask API** (`jobfinder-api`) with `/discover` and `/scan`
+- **Flask API** (`jobfinder-api`) with `POST /discover` and `POST /scan`
 - **Web UI** (served at `/`) to browse companies and jobs
 
 ---
-<img width="1277" height="927" alt="image" src="https://github.com/user-attachments/assets/46372c9e-5c85-4ae7-b389-95efa7c1f7c9" />
 
-# 1) Setup 
-# For Windows PowerShell
+## Quick start
 
+### 1) Setup
+
+#### Windows (PowerShell)
 ```powershell
-
 py -m venv .venv
 . .\.venv\Scripts\Activate.ps1
 pip install -e .
+```
 
-# For Linux\Mac
-
+#### macOS / Linux
 ```bash
-# macOS/Linux
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+source .venv/bin/activate
 pip install -e .
 ```
 
-# 2) If you want "Discover" (find companies in specific cities), set SerpAPI key (not needed for "Scan")
+
+#### PowerShell
+```powershell
 $env:SERPAPI_API_KEY = "YOUR_REAL_KEY"
+```
 
-# 3) Run the server (API + Web UI)
-jobfinder-api         # http://localhost:8000
+#### macOS/Linux
+```bash
+export SERPAPI_API_KEY="YOUR_REAL_KEY"
+```
 
-# 4) Browser UI: open http://localhost:8000
-#    Or API: POST /discover, then POST /scan
+### 2) Run the server (API + Web UI)
+```bash
+jobfinder-api
+```
+
+Open the UI:
+```text
+http://localhost:8000
 ```
 
 ---
 
 ## Requirements
+
 - Python **3.10+**
-- (Optional) SerpAPI account & API key (for discovery only)
-
----
-
-
+- (Optional) SerpAPI account & API key (for **discovery only**)
 
 ---
 
 ## Environment variables
 
-- `SERPAPI_API_KEY` — required **only** for `/discover` or `jobfinder discover`.
-- `HOST`, `PORT` — (optional) Flask bind, defaults `0.0.0.0:8000`.
-- `.env` supported. Example `.env`:
-  ```dotenv
-  SERPAPI_API_KEY=YOUR_REAL_KEY
-  HOST=0.0.0.0
-  PORT=8000
-  ```
+- `SERPAPI_API_KEY` — required **only** for `/discover` or `jobfinder discover`
+- `HOST`, `PORT` — optional Flask bind (defaults to `0.0.0.0:8000`)
+- `.env` supported
+
+Example `.env`:
+```dotenv
+SERPAPI_API_KEY=YOUR_REAL_KEY
+HOST=0.0.0.0
+PORT=8000
+```
 
 PowerShell quick checks:
 ```powershell
 $env:SERPAPI_API_KEY
-dir env: | ? Name -like "*SERPAPI*"   # check api key exist
+dir env: | ? Name -like "*SERPAPI*"
 ```
 
 ---
 
 ## Web UI
 
-- Served at `/` by `jobfinder-api`.
-- Flow: **Discover** → select companies → **Scan selected** → jobs table.
+- Served at `/` by `jobfinder-api`
+- Flow: **Discover → select companies → Scan selected → jobs table**
 
 Run:
 ```powershell
-$env:SERPAPI_API_KEY = "YOUR_REAL_KEY" 
+$env:SERPAPI_API_KEY = "YOUR_REAL_KEY"
 jobfinder-api
 # open http://localhost:8000
 ```
@@ -89,14 +101,24 @@ jobfinder-api
 ```
 
 ### `GET /health`
+Response:
 ```json
 { "status": "ok", "version": "0.2.0" }
 ```
 
-### `POST /discover`
-Unique `(provider, org)`; names normalized from slugs.
+#### curl
+```bash
+curl -s http://localhost:8000/health
+```
 
-**Request**
+---
+
+### `POST /discover`
+
+Find companies by city/keywords using SerpAPI.  
+Dedupes by unique `(provider, org)` and normalizes names from slugs.
+
+Request:
 ```json
 {
   "cities": ["Tel Aviv", "New York"],
@@ -106,41 +128,52 @@ Unique `(provider, org)`; names normalized from slugs.
 }
 ```
 
-**Response**
+Response:
 ```json
 {
   "count": 3,
   "companies": [
-    {"name":"Acme", "provider":"greenhouse", "org":"acme", "city":null, "careers_url":null}
+    { "name": "Acme", "provider": "greenhouse", "org": "acme", "city": null, "careers_url": null }
   ]
 }
 ```
 
-**PowerShell**
+#### PowerShell
 ```powershell
 $resp = Invoke-RestMethod -Method Post -Uri "http://localhost:8000/discover" `
   -ContentType "application/json" `
   -Body '{"cities":["Tel Aviv"],"keywords":["software"],"sources":["greenhouse","lever"],"limit":10}'
+
 $resp.companies | Select-Object -ExpandProperty name
 ```
 
+#### curl
+```bash
+curl -s -X POST "http://localhost:8000/discover" \
+  -H "Content-Type: application/json" \
+  -d '{"cities":["Tel Aviv"],"keywords":["software"],"sources":["greenhouse","lever"],"limit":10}'
+```
+
+---
+
 ### `POST /scan`
+
 Fetch + rank jobs for provided companies.
 
-**Request (JSON list)**
+Request (JSON list):
 ```json
 {
-  "cities": ["Tel Aviv","New York"],
-  "keywords": ["python","data"],
+  "cities": ["Tel Aviv", "New York"],
+  "keywords": ["python", "data"],
   "top": 50,
   "companies": [
-    {"name":"Acme","city":"New York","provider":"greenhouse","org":"acme"},
-    {"name":"Contoso","city":"Tel Aviv","provider":"lever","org":"contoso"}
+    { "name": "Acme", "city": "New York", "provider": "greenhouse", "org": "acme" },
+    { "name": "Contoso", "city": "Tel Aviv", "provider": "lever", "org": "contoso" }
   ]
 }
 ```
 
-**Request (CSV string)**
+Request (CSV string):
 ```json
 {
   "cities": ["Tel Aviv"],
@@ -149,7 +182,7 @@ Fetch + rank jobs for provided companies.
 }
 ```
 
-**Response**
+Response:
 ```json
 {
   "count": 42,
@@ -163,12 +196,19 @@ Fetch + rank jobs for provided companies.
       "remote": false,
       "created_at": "2025-10-10T12:34:56+00:00",
       "provider": "greenhouse",
-      "extra": {"description": "..."},
+      "extra": { "description": "..." },
       "score": 73,
       "reasons": "title:data,city,fresh-5d"
     }
   ]
 }
+```
+
+#### curl
+```bash
+curl -s -X POST "http://localhost:8000/scan" \
+  -H "Content-Type: application/json" \
+  -d '{"cities":["Tel Aviv"],"keywords":["python"],"top":20,"companies":[{"name":"Acme","city":"Tel Aviv","provider":"greenhouse","org":"acme"}]}'
 ```
 
 ---
@@ -195,20 +235,26 @@ jobfinder scan --companies-file data/companies.example.csv \
   --out jobs.csv --save_sqlite jobs.db
 ```
 
-**Companies CSV header:** `name,city,provider,org,careers_url`
+Companies CSV header:
+```text
+name,city,provider,org,careers_url
+```
 
 ---
 
 ## Configuration (`config.yaml`)
 
 Optional file in project root:
+
 ```yaml
 defaults:
   cities: ["Tel Aviv", "New York"]
   keywords: ["python", "data"]
+
 output:
   csv: jobs.csv
   sqlite: jobs.db
+
 discovery:
   sources: ["greenhouse", "lever"]
   limit: 50
@@ -218,47 +264,54 @@ discovery:
 
 ## Discovery pipeline (dedupe + normalize)
 
-- Query SerpAPI for `site:boards.greenhouse.io` / `site:jobs.lever.co` with city/keywords.
-- Canonicalize URLs (strip query/fragment), extract first path segment as org.
-- De-duplicate by `(provider, org)`; normalize names from slug (`my-company` → `My Company`).
+- Query SerpAPI for:
+  - `site:boards.greenhouse.io` and/or
+  - `site:jobs.lever.co`
+- Canonicalize URLs (strip query/fragment), extract first path segment as `org`
+- De-duplicate by `(provider, org)`
+- Normalize names from slug (`my-company` → `My Company`)
 
 ---
 
 ## Extend providers
 
-1. Create `jobfinder/providers/<new>.py` with:
-   ```python
-   async def jobs(self, company: Company) -> AsyncIterator[Job]: ...
-   ```
-2. Register in `jobfinder/providers/__init__.py`:
-   ```python
-   PROVIDERS["new"] = NewProvider()
-   ```
+1) Create `jobfinder/providers/<new>.py` with:
+```python
+async def jobs(self, company: Company):
+    ...
+```
+
+2) Register in `jobfinder/providers/__init__.py`:
+```python
+PROVIDERS["new"] = NewProvider()
+```
 
 ---
 
 ## Data formats
 
-**Companies CSV**: `name,city,provider,org,careers_url`  
-**Jobs CSV**: `id,title,company,url,location,remote,created_at,provider,extra,score,reasons`
+Companies CSV:
+```text
+name,city,provider,org,careers_url
+```
+
+Jobs CSV:
+```text
+id,title,company,url,location,remote,created_at,provider,extra,score,reasons
+```
 
 ---
 
 ## Troubleshooting
 
-- **`SERPAPI_API_KEY missing`** → set it **before** starting `jobfinder-api` or running `jobfinder discover`.  
-- **PowerShell `export` error** → use `$env:VAR="value"`.  
-- **Empty /scan results** → verify `provider` ∈ `{greenhouse, lever}` and `org` is the board slug.  
+- `SERPAPI_API_KEY missing` → set it before starting `jobfinder-api` or running `jobfinder discover`
+- PowerShell `export` error → use `$env:VAR="value"`
+- Empty `/scan` results → verify:
+  - `provider` ∈ `{greenhouse, lever}`
+  - `org` is the board slug
 
 ---
 
 ## License
+
 MIT
-
----
-
-
-## Changelog
-- **0.2.0** — Web UI added; API mounts UI at `/`.
-- **0.1.2** — Canonicalized discovery, de-dup, normalized names.
-- **0.1.0** — Initial CLI + API.

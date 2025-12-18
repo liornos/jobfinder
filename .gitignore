@@ -8,14 +8,15 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+jobfinder.egg-info
 
 # Virtual environments
-.venv/
-venv/
-env/
+.venv\
+venv\
+env\
 
 # Packaging / builds
-*.egg-info/
+*.egg-info\
 dist/
 build/
 
