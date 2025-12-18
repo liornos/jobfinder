@@ -193,8 +193,11 @@ async function discover() {
   console.log("[jobfinder] Discover clicked");
   const cities = (qs("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
   const keywords = (qs("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const sources = Array.from(qs("#sources")?.selectedOptions || []).map(o => o.value);
-  const limit = parseInt(qs("#limit")?.value || "50", 10);
+  const sourcesEl = qs("#sources");
+  const sources = sourcesEl?.tagName === "SELECT" 
+    ? Array.from(sourcesEl.selectedOptions || []).map(o => o.value)
+    : (sourcesEl?.value || "greenhouse,lever,ashby,smartrecruiters").split(",").map(s => s.trim());
+  const limit = parseInt(qs("#limit")?.value || "1000", 10);
   try {
     const r = await fetch("/discover", {
       method: "POST",
@@ -214,6 +217,7 @@ async function discover() {
     }
     companies = data.companies || [];
     renderCompanies();
+    showPanelsAfterDiscover();
     setDiscoverMsg(`Found ${companies.length} companies`, "ok");
   } catch (e) {
     console.error("[jobfinder] Discover error", e);
@@ -233,6 +237,7 @@ async function loadSeedCompanies(reasonText) {
     }
     companies = list;
     renderCompanies();
+    showPanelsAfterDiscover();
     setDiscoverMsg(reasonText || `Loaded ${companies.length} seed companies`, "ok");
   } catch (e) {
     console.error("[jobfinder] Seed load error", e);
@@ -277,6 +282,13 @@ async function scanSelected() {
   } finally {
     setScanLoading(false);
   }
+}
+
+function showPanelsAfterDiscover() {
+  const companiesPanel = qs("#companiesPanel");
+  const scanFiltersPanel = qs("#scanFiltersPanel");
+  if (companiesPanel) companiesPanel.style.display = "";
+  if (scanFiltersPanel) scanFiltersPanel.style.display = "";
 }
 
 function saveCurrentSearch() {
