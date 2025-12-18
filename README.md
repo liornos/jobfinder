@@ -18,130 +18,150 @@ Includes:
 py -m venv .venv
 . .\.venv\Scripts\Activate.ps1
 pip install -e .
-macOS / Linux
-bash
-Copy code
+```
+
+#### macOS / Linux
+```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-2) Optional: enable “Discover” (SerpAPI key)
-Not needed for “Scan”.
+```
 
-PowerShell
-powershell
-Copy code
+
+#### PowerShell
+```powershell
 $env:SERPAPI_API_KEY = "YOUR_REAL_KEY"
-macOS/Linux
-bash
-Copy code
+```
+
+#### macOS/Linux
+```bash
 export SERPAPI_API_KEY="YOUR_REAL_KEY"
-3) Run the server (API + Web UI)
-bash
-Copy code
+```
+
+### 2) Run the server (API + Web UI)
+```bash
 jobfinder-api
+```
+
 Open the UI:
-
-text
-Copy code
+```text
 http://localhost:8000
-Requirements
-Python 3.10+
+```
 
-(Optional) SerpAPI account & API key (for discovery new company only)
+---
 
-Environment variables
-SERPAPI_API_KEY — required only for /discover or jobfinder discover
+## Requirements
 
-HOST, PORT — optional Flask bind (defaults to 0.0.0.0:8000)
+- Python **3.10+**
+- (Optional) SerpAPI account & API key (for **discovery only**)
 
-.env supported
+---
 
-Example .env:
+## Environment variables
 
-dotenv
-Copy code
+- `SERPAPI_API_KEY` — required **only** for `/discover` or `jobfinder discover`
+- `HOST`, `PORT` — optional Flask bind (defaults to `0.0.0.0:8000`)
+- `.env` supported
+
+Example `.env`:
+```dotenv
 SERPAPI_API_KEY=YOUR_REAL_KEY
 HOST=0.0.0.0
 PORT=8000
-PowerShell quick checks:
+```
 
-powershell
-Copy code
+PowerShell quick checks:
+```powershell
 $env:SERPAPI_API_KEY
 dir env: | ? Name -like "*SERPAPI*"
-Web UI
-Served at / by jobfinder-api
+```
 
-Flow: Discover → select companies → Scan selected → jobs table
+---
+
+## Web UI
+
+- Served at `/` by `jobfinder-api`
+- Flow: **Discover → select companies → Scan selected → jobs table**
 
 Run:
-
-powershell
-Copy code
+```powershell
 $env:SERPAPI_API_KEY = "YOUR_REAL_KEY"
 jobfinder-api
 # open http://localhost:8000
-API
-Start
-powershell
-Copy code
+```
+
+---
+
+## API
+
+### Start
+```powershell
 $env:SERPAPI_API_KEY = "YOUR_REAL_KEY"  # for /discover
 jobfinder-api
-GET /health
-Response:
+```
 
-json
-Copy code
+### `GET /health`
+Response:
+```json
 { "status": "ok", "version": "0.2.0" }
-curl
-bash
-Copy code
+```
+
+#### curl
+```bash
 curl -s http://localhost:8000/health
-POST /discover
-Find companies by city/keywords using SerpAPI.
-Dedupes by unique (provider, org) and normalizes names from slugs.
+```
+
+---
+
+### `POST /discover`
+
+Find companies by city/keywords using SerpAPI.  
+Dedupes by unique `(provider, org)` and normalizes names from slugs.
 
 Request:
-
-json
-Copy code
+```json
 {
   "cities": ["Tel Aviv", "New York"],
   "keywords": ["software", "ai"],
   "sources": ["greenhouse", "lever"],
   "limit": 25
 }
-Response:
+```
 
-json
-Copy code
+Response:
+```json
 {
   "count": 3,
   "companies": [
     { "name": "Acme", "provider": "greenhouse", "org": "acme", "city": null, "careers_url": null }
   ]
 }
-PowerShell
-powershell
-Copy code
+```
+
+#### PowerShell
+```powershell
 $resp = Invoke-RestMethod -Method Post -Uri "http://localhost:8000/discover" `
   -ContentType "application/json" `
   -Body '{"cities":["Tel Aviv"],"keywords":["software"],"sources":["greenhouse","lever"],"limit":10}'
 
 $resp.companies | Select-Object -ExpandProperty name
-curl
-bash
-Copy code
+```
+
+#### curl
+```bash
 curl -s -X POST "http://localhost:8000/discover" \
   -H "Content-Type: application/json" \
   -d '{"cities":["Tel Aviv"],"keywords":["software"],"sources":["greenhouse","lever"],"limit":10}'
-POST /scan
+```
+
+---
+
+### `POST /scan`
+
 Fetch + rank jobs for provided companies.
 
 Request (JSON list):
-
-json
-Copy code
+```json
 {
   "cities": ["Tel Aviv", "New York"],
   "keywords": ["python", "data"],
@@ -151,19 +171,19 @@ Copy code
     { "name": "Contoso", "city": "Tel Aviv", "provider": "lever", "org": "contoso" }
   ]
 }
-Request (CSV string):
+```
 
-json
-Copy code
+Request (CSV string):
+```json
 {
   "cities": ["Tel Aviv"],
   "keywords": ["python"],
   "companies_csv": "name,city,provider,org,careers_url\nAcme,New York,greenhouse,acme,\n"
 }
-Response:
+```
 
-json
-Copy code
+Response:
+```json
 {
   "count": 42,
   "results": [
@@ -182,40 +202,51 @@ Copy code
     }
   ]
 }
-curl
-bash
-Copy code
+```
+
+#### curl
+```bash
 curl -s -X POST "http://localhost:8000/scan" \
   -H "Content-Type: application/json" \
   -d '{"cities":["Tel Aviv"],"keywords":["python"],"top":20,"companies":[{"name":"Acme","city":"Tel Aviv","provider":"greenhouse","org":"acme"}]}'
-CLI
-Help
-bash
-Copy code
+```
+
+---
+
+## CLI
+
+### Help
+```bash
 jobfinder --help
 jobfinder discover --help
 jobfinder scan --help
-Discover
-bash
-Copy code
+```
+
+### Discover
+```bash
 jobfinder discover --cities "Tel Aviv,New York" --keywords "software,ai" \
   --sources greenhouse,lever --limit 50 --out companies.csv
-Scan
-bash
-Copy code
+```
+
+### Scan
+```bash
 jobfinder scan --companies-file data/companies.example.csv \
   --cities "Tel Aviv,New York" --keywords "python,data" \
   --out jobs.csv --save_sqlite jobs.db
-Companies CSV header:
+```
 
-text
-Copy code
+Companies CSV header:
+```text
 name,city,provider,org,careers_url
-Configuration (config.yaml)
+```
+
+---
+
+## Configuration (`config.yaml`)
+
 Optional file in project root:
 
-yaml
-Copy code
+```yaml
 defaults:
   cities: ["Tel Aviv", "New York"]
   keywords: ["python", "data"]
@@ -227,53 +258,60 @@ output:
 discovery:
   sources: ["greenhouse", "lever"]
   limit: 50
-Discovery pipeline (dedupe + normalize)
-Query SerpAPI for:
+```
 
-site:boards.greenhouse.io and/or
+---
 
-site:jobs.lever.co
+## Discovery pipeline (dedupe + normalize)
 
-Canonicalize URLs (strip query/fragment), extract first path segment as org
+- Query SerpAPI for:
+  - `site:boards.greenhouse.io` and/or
+  - `site:jobs.lever.co`
+- Canonicalize URLs (strip query/fragment), extract first path segment as `org`
+- De-duplicate by `(provider, org)`
+- Normalize names from slug (`my-company` → `My Company`)
 
-De-duplicate by (provider, org)
+---
 
-Normalize names from slug (my-company → My Company)
+## Extend providers
 
-Extend providers
-Create jobfinder/providers/<new>.py with:
-
-python
-Copy code
+1) Create `jobfinder/providers/<new>.py` with:
+```python
 async def jobs(self, company: Company):
     ...
-Register in jobfinder/providers/__init__.py:
+```
 
-python
-Copy code
+2) Register in `jobfinder/providers/__init__.py`:
+```python
 PROVIDERS["new"] = NewProvider()
-Data formats
+```
+
+---
+
+## Data formats
+
 Companies CSV:
-
-text
-Copy code
+```text
 name,city,provider,org,careers_url
+```
+
 Jobs CSV:
-
-text
-Copy code
+```text
 id,title,company,url,location,remote,created_at,provider,extra,score,reasons
-Troubleshooting
-SERPAPI_API_KEY missing → set it before starting jobfinder-api or running jobfinder discover
+```
 
-PowerShell export error → use $env:VAR="value"
+---
 
-Empty /scan results → verify:
+## Troubleshooting
 
-provider ∈ {greenhouse, lever}
+- `SERPAPI_API_KEY missing` → set it before starting `jobfinder-api` or running `jobfinder discover`
+- PowerShell `export` error → use `$env:VAR="value"`
+- Empty `/scan` results → verify:
+  - `provider` ∈ `{greenhouse, lever}`
+  - `org` is the board slug
 
-org is the board slug
+---
 
-License
+## License
+
 MIT
-
