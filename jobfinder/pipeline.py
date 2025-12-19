@@ -18,7 +18,7 @@ from .filtering import apply_filters, score
 log = logging.getLogger(__name__)
 
 # Supported provider names used by scan()
-PROVIDERS: Tuple[str, ...] = ("greenhouse", "lever", "ashby", "smartrecruiters")
+PROVIDERS: Tuple[str, ...] = ("greenhouse", "lever", "ashby", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims")
 
 # Hostnames per provider used by discover()
 _PROVIDER_HOST = {
@@ -26,6 +26,12 @@ _PROVIDER_HOST = {
     "lever": "jobs.lever.co",
     "ashby": "jobs.ashbyhq.com",
     "smartrecruiters": "jobs.smartrecruiters.com",
+    "breezy": "breezy.hr",
+    "comeet": "comeet.co",
+    "workday": "myworkdayjobs.com",
+    "recruitee": "recruitee.com",
+    "jobvite": "jobvite.com",
+    "icims": "icims.com",
 }
 
 # ----------------- utils -----------------
