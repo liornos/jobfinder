@@ -206,7 +206,7 @@ async function discover() {
       const msg = (data && data.error) ? String(data.error) : "Discover failed";
       const missing = /SERPAPI.*KEY|MISSING API KEY/i.test(msg);
       if (missing) {
-        await loadSeedCompanies("SerpAPI key missing; loaded seed data.");
+        await loadSeedCompanies("SerpAPI key missing; loaded seed data.", cities);
         return;
       }
       setDiscoverMsg(msg, "error");
@@ -221,7 +221,7 @@ async function discover() {
   }
 }
 
-async function loadSeedCompanies(reasonText) {
+async function loadSeedCompanies(reasonText, cities = []) {
   setDiscoverMsg("Loading seed companies...", "info");
   try {
     const r = await fetch("/static/companies.json", {cache: "no-cache"});
@@ -231,7 +231,17 @@ async function loadSeedCompanies(reasonText) {
       setDiscoverMsg("Seed file empty or invalid", "error");
       return;
     }
-    companies = list;
+    // Filter companies by cities if cities are provided
+    let filtered = list;
+    if (cities && cities.length > 0) {
+      const normalizedCities = cities.map(c => c.trim().toLowerCase()).filter(Boolean);
+      filtered = list.filter(c => {
+        const companyCity = (c.city || "").toLowerCase();
+        // Match if any city from the list is found in the company's city (case-insensitive substring match)
+        return normalizedCities.some(city => companyCity.includes(city));
+      });
+    }
+    companies = filtered;
     renderCompanies();
     setDiscoverMsg(reasonText || `Loaded ${companies.length} seed companies`, "ok");
   } catch (e) {
