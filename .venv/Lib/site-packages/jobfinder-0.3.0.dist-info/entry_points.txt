@@ -1,0 +1,3 @@
+[console_scripts]
+jobfinder = jobfinder.cli:app
+jobfinder-api = jobfinder.api:main
