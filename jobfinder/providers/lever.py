@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from ._http import get_json
 
-API = "https://jobs.lever.co/{org}.json"
+API = "https://api.lever.co/v0/postings/{org}?mode=json"
 
 def _ms_to_iso(ms: Optional[int]) -> Optional[str]:
     if not ms:

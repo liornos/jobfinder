@@ -3,19 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
   <title>jobfinder 0.3.0 • Companies & Jobs</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-50 text-gray-900">
   <div class="max-w-7xl mx-auto p-6">
-    <header class="mb-6 flex items-center justify-between">
+    <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-3xl font-bold">jobfinder <span class="text-xs align-top text-gray-500">0.3.0</span></h1>
+        <h1 class="text-3xl font-bold">
+          jobfinder <span class="text-xs align-top text-gray-500">0.3.0</span>
+        </h1>
         <p class="text-sm text-gray-600">Discover companies & fetch jobs from ATS providers</p>
       </div>
-      <div class="text-sm">
-        <label class="inline-flex items-center gap-2"><input id="autoRefresh" type="checkbox"> Auto refresh</label>
-        <select id="refreshInterval" class="border rounded px-2 py-1 ml-2">
+
+      <div class="text-sm flex items-center gap-3">
+        <label class="inline-flex items-center gap-2 select-none">
+          <input id="autoRefresh" type="checkbox" class="h-4 w-4 accent-black">
+          <span>Auto refresh</span>
+        </label>
+        <select id="refreshInterval"
+                class="border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
           <option value="60">1m</option>
           <option value="300" selected>5m</option>
           <option value="900">15m</option>
@@ -24,118 +33,238 @@
     </header>
 
     <section class="grid lg:grid-cols-3 gap-4 mb-6">
+      <!-- Discover -->
       <div class="p-4 bg-white rounded-2xl shadow">
-        <h2 class="font-semibold mb-2">Discover</h2>
-        <label class="block text-sm">Cities (comma)</label>
-        <input id="cities" class="w-full border rounded px-3 py-2 mb-2" value="Tel Aviv, herzliya" placeholder="Tel Aviv, herzliya">
-        <label class="block text-sm">Keywords (comma)</label>
-        <input id="keywords" class="w-full border rounded px-3 py-2 mb-2" value="software" placeholder="software">
-        <input id="sources" type="hidden" value="greenhouse,lever,ashby,smartrecruiters">
-        <input id="limit" type="hidden" value="1000">
-        <button id="btnDiscover" type="button" class="w-full rounded-2xl px-3 py-2 bg-black text-white">Discover</button>
-        <p id="discoverMsg" class="text-base font-semibold mt-3"></p>
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="font-semibold mb-2">Discover</h2>
+          <span class="text-xs text-gray-500">Tip: add multiple cities</span>
+        </div>
+
+        <label for="cities" class="block text-sm font-medium">Cities (comma)</label>
+        <input id="cities"
+               class="w-full border rounded-xl px-3 py-2 mb-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+               value="Tel Aviv, Herzliya"
+               placeholder="Tel Aviv, Herzliya, Raanana">
+
+        <label for="keywords" class="block text-sm font-medium">Keywords (comma)</label>
+        <input id="keywords"
+               class="w-full border rounded-xl px-3 py-2 mb-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+               value="software"
+               placeholder="python, qa, automation">
+
+        <!-- Advanced discover options -->
+        <details class="mt-2">
+          <summary class="cursor-pointer text-sm text-gray-700 select-none">Advanced</summary>
+          <div class="mt-3 grid gap-3">
+            <div>
+              <label for="sources" class="block text-sm font-medium">Sources</label>
+              <select id="sources" multiple size="5"
+                      class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+                <!-- Keep defaults aligned to backend support -->
+                <option value="greenhouse" selected>greenhouse</option>
+                <option value="lever" selected>lever</option>
+                <option value="ashby" selected>ashby</option>
+                <option value="smartrecruiters" selected>smartrecruiters</option>
+
+                <!-- Add only if implemented in backend -->
+                <option value="workable">workable</option>
+                <option value="recruitee">recruitee</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">Hold Ctrl/⌘ to select multiple.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label for="limit" class="block text-sm font-medium">Discover limit</label>
+                <input id="limit" type="number" min="10" step="10" value="1000"
+                       class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+              </div>
+              <div>
+                <label for="radius" class="block text-sm font-medium">Radius (km)</label>
+                <input id="radius" type="number" min="0" step="1" value="0"
+                       class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+              </div>
+            </div>
+
+            <div class="text-xs text-gray-500">
+              If SerpAPI key is missing, the UI will load seed companies from <code>/static/companies.json</code>.
+            </div>
+          </div>
+        </details>
+
+        <button id="btnDiscover" type="button"
+                class="w-full mt-4 rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2
+                       hover:opacity-95 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-black/30">
+          <span id="discoverBtnText">Discover</span>
+          <span id="discoverSpinner"
+                class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+        </button>
+
+        <p id="discoverMsg" class="text-base font-semibold mt-3" role="status" aria-live="polite"></p>
       </div>
 
+      <!-- Companies -->
       <div class="p-4 bg-white rounded-2xl shadow" id="companiesPanel" style="display:none;">
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold">Companies</h2>
           <div class="space-x-2">
-            <button id="btnClear" type="button" class="rounded-xl px-3 py-2 border">Clear</button>
+            <button id="btnClear" type="button"
+                    class="rounded-xl px-3 py-2 border bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/20">
+              Clear
+            </button>
           </div>
         </div>
-        <div class="overflow-auto max-h-64">
-          <table class="min-w-full text-sm" id="companiesTable">
+
+        <div class="overflow-auto max-h-64 rounded-xl border">
+          <table class="w-full text-sm table-fixed" id="companiesTable">
             <thead class="sticky top-0 bg-gray-100">
               <tr>
-                <th class="p-2"><input type="checkbox" id="selectAll"></th>
-                <th class="p-2 text-left">Name</th>
-                <th class="p-2 text-left">Provider</th>
-                <th class="p-2 text-left">Org</th>
+                <th class="p-2 w-10"><input type="checkbox" id="selectAll" class="h-4 w-4 accent-black"></th>
+                <th class="p-2 text-left w-2/5">Name</th>
+                <th class="p-2 text-left w-1/4">Provider</th>
+                <th class="p-2 text-left w-1/3">Org</th>
               </tr>
             </thead>
             <tbody id="companiesBody"></tbody>
           </table>
         </div>
+
+        <p class="text-xs text-gray-500 mt-2">Tip: select a few companies, then scan.</p>
       </div>
 
+      <!-- Scan Filters -->
       <div class="p-4 bg-white rounded-2xl shadow" id="scanFiltersPanel" style="display:none;">
-        <h2 class="font-semibold mb-2">Scan Filters</h2>
-        <input id="radius" type="hidden" value="0">
-        <input id="fltProvider" type="hidden" value="">
-        <input id="fltSalary" type="hidden" value="">
+        <div class="flex items-start justify-between">
+          <h2 class="font-semibold mb-2">Scan Filters</h2>
+          <span class="text-xs text-gray-500">Affects scan + local filtering</span>
+        </div>
+
         <div class="grid grid-cols-3 gap-2">
           <div>
-            <label class="block text-sm">Remote</label>
-            <select id="fltRemote" class="w-full border rounded px-3 py-2">
+            <label for="fltRemote" class="block text-sm font-medium">Remote</label>
+            <select id="fltRemote"
+                    class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
               <option value="any">Any</option>
               <option value="true">Remote</option>
               <option value="hybrid">Hybrid</option>
               <option value="false">Onsite</option>
             </select>
           </div>
+
           <div>
-            <label class="block text-sm">Min score</label>
-            <input id="fltScore" type="number" value="0" class="w-full border rounded px-3 py-2">
+            <label for="fltScore" class="block text-sm font-medium">Min score</label>
+            <input id="fltScore" type="number" value="0"
+                   class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
           </div>
+
           <div>
-            <label class="block text-sm">Date Publish(days)</label>
-            <input id="fltAge" type="number" value="" class="w-full border rounded px-3 py-2">
+            <label for="fltAge" class="block text-sm font-medium">Max age (days)</label>
+            <input id="fltAge" type="number" value="" placeholder="e.g., 7"
+                   class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
           </div>
         </div>
+
+        <details class="mt-3">
+          <summary class="cursor-pointer text-sm text-gray-700 select-none">More filters</summary>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <div>
+              <label for="fltProvider" class="block text-sm font-medium">Provider</label>
+              <select id="fltProvider"
+                      class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+                <option value="">All</option>
+                <option value="greenhouse">greenhouse</option>
+                <option value="lever">lever</option>
+                <option value="ashby">ashby</option>
+                <option value="smartrecruiters">smartrecruiters</option>
+              </select>
+            </div>
+            <div>
+              <label for="fltSalary" class="block text-sm font-medium">Min salary</label>
+              <input id="fltSalary" type="number" value="" placeholder="(if available)"
+                     class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+            </div>
+          </div>
+        </details>
+
         <div class="mt-4">
           <button id="btnScanSelected" type="button"
-                  class="w-full rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2"
+                  class="w-full rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2
+                         hover:opacity-95 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-black/30"
                   aria-live="polite">
             <span id="scanBtnText">Scan selected</span>
             <span id="scanSpinner" class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           </button>
-          <p id="scanMsg" class="text-sm text-gray-600 mt-2"></p>
-          <label class="ml-1 text-sm inline-flex items-center gap-2 mt-2"><input id="onlyNew" type="checkbox"> Only new</label>
+
+          <p id="scanMsg" class="text-sm text-gray-600 mt-2" role="status" aria-live="polite"></p>
+
+          <label class="ml-1 text-sm inline-flex items-center gap-2 mt-2 select-none">
+            <input id="onlyNew" type="checkbox" class="h-4 w-4 accent-black">
+            Only new
+          </label>
         </div>
       </div>
     </section>
 
+    <!-- Jobs -->
     <section class="p-4 bg-white rounded-2xl shadow">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
         <div class="font-semibold">Jobs</div>
-        <div class="flex items-center gap-2 text-sm">
+
+        <div class="flex flex-wrap items-center gap-2 text-sm">
           <div><span id="jobsCount">0</span> results (<span id="newCount">0</span> new)</div>
-          <label>Page size
-            <select id="pageSize" class="border rounded px-1 py-0.5">
+
+          <label class="inline-flex items-center gap-2">
+            <span>Page size</span>
+            <select id="pageSize" class="border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
               <option>25</option><option selected>50</option><option>100</option>
             </select>
           </label>
-          <button id="prevPage" type="button" class="border rounded px-2 py-1">Prev</button>
+
+          <button id="prevPage" type="button"
+                  class="border rounded-lg px-3 py-1 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed
+                         focus:outline-none focus:ring-2 focus:ring-black/20">
+            Prev
+          </button>
           <span id="pageInfo">1 / 1</span>
-          <button id="nextPage" type="button" class="border rounded px-2 py-1">Next</button>
+          <button id="nextPage" type="button"
+                  class="border rounded-lg px-3 py-1 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed
+                         focus:outline-none focus:ring-2 focus:ring-black/20">
+            Next
+          </button>
         </div>
       </div>
-      <div class="overflow-auto">
+
+      <div class="overflow-auto rounded-xl border">
         <table class="min-w-full text-sm" id="jobsTable">
-          <thead class="bg-gray-100">
+          <thead class="bg-gray-100 sticky top-0">
             <tr>
-              <th class="p-2 sort" data-key="score">Score</th>
-              <th class="p-2 sort" data-key="title">Title</th>
-              <th class="p-2 sort" data-key="company">Company</th>
-              <th class="p-2 sort" data-key="location">Location</th>
-              <th class="p-2 sort" data-key="provider">Provider</th>
-              <th class="p-2 sort" data-key="created_at">Date</th>
+              <th class="p-2 sort cursor-pointer select-none" data-key="score" title="Sort by score">Score</th>
+              <th class="p-2 sort cursor-pointer select-none" data-key="title" title="Sort by title">Title</th>
+              <th class="p-2 sort cursor-pointer select-none" data-key="company" title="Sort by company">Company</th>
+              <th class="p-2 sort cursor-pointer select-none" data-key="location" title="Sort by location">Location</th>
+              <th class="p-2 sort cursor-pointer select-none" data-key="provider" title="Sort by provider">Provider</th>
+              <th class="p-2 sort cursor-pointer select-none" data-key="created_at" title="Sort by date">Date</th>
               <th class="p-2">Link</th>
             </tr>
           </thead>
           <tbody id="jobsBody"></tbody>
         </table>
       </div>
+
+      <p class="text-xs text-gray-500 mt-2">Tip: click a job row to open details drawer.</p>
     </section>
   </div>
 
+  <!-- Drawer -->
   <div id="drawer" class="hidden fixed inset-0 bg-black/30">
     <div class="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-xl p-6 overflow-y-auto">
-      <button id="closeDrawer" type="button" class="border rounded px-2 py-1 mb-4">Close</button>
+      <button id="closeDrawer" type="button"
+              class="border rounded-lg px-3 py-1 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/20 mb-4">
+        Close
+      </button>
       <div id="drawerContent"></div>
     </div>
   </div>
-
-  <script src="/static/app.js" defer></script>
+<script src="/static/app.js?v=1" defer></script>
 </body>
 </html>
