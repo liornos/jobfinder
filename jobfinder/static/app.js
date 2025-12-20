@@ -133,8 +133,6 @@
       tr.innerHTML = `
         <td class="p-2"><input type="checkbox" class="rowSel" data-i="${i}"></td>
         <td class="p-2">${escapeHtml(c.name || "")}</td>
-        <td class="p-2">${escapeHtml(c.provider || "")}</td>
-        <td class="p-2">${escapeHtml(c.org || "")}</td>
       `;
       body.appendChild(tr);
     });
