@@ -1,409 +1,545 @@
 // jobfinder/static/app.js
-console.log("[jobfinder] app.js loaded");
+// Patch: make Discover robust when backend /discover is not implemented (501) or SerpAPI key is missing.
+// Also: if #sources is a <select multiple> and user selects nothing, fall back to default provider list.
 
-const qs = (sel) => document.querySelector(sel);
-const qsa = (sel) => Array.from(document.querySelectorAll(sel));
+(() => {
+  "use strict";
 
-let companies = [];
-let jobs = [];
-let filtered = [];
-let page = 1;
-let pageSize = 50;
-let sortSpec = [{ key: "score", dir: "desc" }];
-let lastScanIds = new Set();
-let newIds = new Set();
-let initialized = false;
+  const qs = (sel) => document.querySelector(sel);
+  const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
-function saveLocal(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
-function loadLocal(key, def){ try{ return JSON.parse(localStorage.getItem(key)) ?? def }catch{ return def } }
+  const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
 
-function setDiscoverMsg(text, kind="info") {
-  const el = qs("#discoverMsg"); if (!el) return;
-  el.textContent = text || "";
-  el.className = "mt-3 text-base font-semibold";
-  if (kind === "error") el.classList.add("text-red-600");
-  else if (kind === "ok") el.classList.add("text-green-700");
-  else el.classList.add("text-gray-800");
-}
+  const isDebug = () => (localStorage.getItem("jobfinder_debug") || "") === "1";
+  const log = (...args) => console.log("[jobfinder]", ...args);
+  const debug = (...args) => { if (isDebug()) console.debug("[jobfinder:debug]", ...args); };
+  const err = (...args) => console.error("[jobfinder:error]", ...args);
 
-function setScanLoading(isLoading, text="Scanning...") {
-  const btn = qs("#btnScanSelected");
-  const txt = qs("#scanBtnText");
-  const spn = qs("#scanSpinner");
-  const msg = qs("#scanMsg");
-  if (!btn) return;
-  if (isLoading) {
-    btn.disabled = true;
-    btn.setAttribute("aria-busy", "true");
-    btn.classList.add("opacity-70", "cursor-not-allowed");
-    if (txt) txt.textContent = text;
-    if (spn) spn.classList.remove("hidden");
-    if (msg) { msg.textContent = text; msg.className = "text-sm mt-2 text-gray-800 font-semibold"; }
-  } else {
-    btn.disabled = false;
-    btn.removeAttribute("aria-busy");
-    btn.classList.remove("opacity-70", "cursor-not-allowed");
-    if (txt) txt.textContent = "Scan selected";
-    if (spn) spn.classList.add("hidden");
-    if (msg) { msg.textContent = ""; msg.className = "text-sm text-gray-600 mt-2"; }
+  function saveLocal(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+  function loadLocal(key, def) { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } }
+
+  function escapeHtml(s) {
+    return (s ?? "").toString().replace(/[&<>"']/g, m => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[m]));
   }
-}
 
-function renderCompanies() {
-  const body = qs("#companiesBody");
-  if (!body) return;
-  body.innerHTML = "";
-  companies.forEach((c, i) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="p-2"><input type="checkbox" class="rowSel" data-i="${i}"></td>
-      <td class="p-2">${escapeHtml(c.name || "")}</td>
-      <td class="p-2">${escapeHtml(c.provider || "")}</td>
-      <td class="p-2">${escapeHtml(c.org || "")}</td>
-    `;
-    body.appendChild(tr);
-  });
-}
+  function sanitizeToText(html) {
+    const div = document.createElement("div");
+    div.innerHTML = html || "";
+    div.querySelectorAll("script,style,iframe,object,embed,link").forEach(n => n.remove());
+    return div.textContent || div.innerText || "";
+  }
 
-function fmtDate(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0,10);
-}
+  function fmtDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  }
 
-function escapeHtml(s) {
-  return (s ?? "").toString().replace(/[&<>"']/g, m => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[m]));
-}
+  function setText(el, text) { if (el) el.textContent = text ?? ""; }
 
-function sanitize(html) {
-  const div = document.createElement("div");
-  div.innerHTML = html || "";
-  div.querySelectorAll("script,style,iframe,object,embed,link").forEach(n => n.remove());
-  return div.textContent || div.innerText || "";
-}
+  function setDiscoverMsg(text, kind = "info") {
+    const el = qs("#discoverMsg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.className = "mt-3 text-base font-semibold";
+    if (kind === "error") el.classList.add("text-red-600");
+    else if (kind === "ok") el.classList.add("text-green-700");
+    else el.classList.add("text-gray-800");
+  }
 
-function extractSkills(job) {
-  const kwEl = qs("#keywords");
-  const kws = (kwEl?.value || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
-  const text = `${job.title} ${sanitize(job.extra?.description || "")}`.toLowerCase();
-  const hits = new Set();
-  for (const k of kws) if (k && text.includes(k)) hits.add(k);
-  return Array.from(hits).slice(0, 20);
-}
+  function setScanMsg(text, kind = "info") {
+    const msg = qs("#scanMsg");
+    if (!msg) return;
+    msg.textContent = text || "";
+    msg.className = "text-sm mt-2 font-semibold";
+    if (!text) msg.classList.add("text-gray-600");
+    else if (kind === "error") msg.classList.add("text-red-600");
+    else if (kind === "ok") msg.classList.add("text-green-700");
+    else msg.classList.add("text-gray-800");
+  }
 
-function badgeWorkMode(job) {
-  const wm = (job.extra?.work_mode || "").toLowerCase();
-  if (!wm) return "";
-  const label = wm === "remote" ? "Remote" : wm === "hybrid" ? "Hybrid" : "Onsite";
-  return `<span class="text-xs bg-gray-100 rounded px-2 py-1 ml-2">${label}</span>`;
-}
+  function setScanLoading(isLoading, text = "Scanning...") {
+    const btn = qs("#btnScanSelected");
+    const txt = qs("#scanBtnText");
+    const spn = qs("#scanSpinner");
+    if (!btn) return;
 
-function openDrawer(job) {
-  const el = qs("#drawer");
-  const d = qs("#drawerContent");
-  if (!el || !d) return;
-  const skills = extractSkills(job);
-  d.innerHTML = `
-    <h3 class="text-xl font-semibold mb-1">${escapeHtml(job.title || "")}</h3>
-    <div class="text-sm text-gray-600 mb-3">
-      ${escapeHtml(job.company || "")} • ${escapeHtml(job.location || "N/A")} • ${escapeHtml(job.provider || "")}
-      ${badgeWorkMode(job)}
-    </div>
-    <div class="flex flex-wrap gap-1 mb-3">
-      ${(skills.map(s => `<span class="text-xs bg-gray-100 rounded px-2 py-1">${escapeHtml(s)}</span>`).join(" "))}
-    </div>
-    <div class="text-sm mb-2">Reasons: ${escapeHtml(job.reasons || "")}</div>
-    <div class="text-sm whitespace-pre-wrap">${escapeHtml(sanitize(job.extra?.description || ""))}</div>
-  `;
-  el.classList.remove("hidden");
-}
-
-function matchRemote(job, sel) {
-  const wm = (job.extra?.work_mode || "").toLowerCase();
-  if (sel === "any") return true;
-  if (sel === "hybrid") return wm === "hybrid";
-  if (sel === "true")  return wm ? wm === "remote" : Boolean(job.remote) === true;
-  if (sel === "false") return wm ? wm === "onsite" : Boolean(job.remote) === false;
-  return true;
-}
-
-function renderJobs() {
-  const prov = qs("#fltProvider")?.value || "";
-  const remoteSel = qs("#fltRemote")?.value || "any";
-  const minScore = parseInt(qs("#fltScore")?.value || "0");
-  const minSalary = parseInt(qs("#fltSalary")?.value || "0");
-  const onlyNew = !!qs("#onlyNew")?.checked;
-
-  filtered = jobs.filter(j => {
-    if (prov && (j.provider||"") !== prov) return false;
-    if (!matchRemote(j, remoteSel)) return false;
-    if ((j.score||0) < minScore) return false;
-    const smin = Number(j.extra?.salary_min || 0);
-    const smax = Number(j.extra?.salary_max || 0);
-    if (minSalary && Math.max(smin, smax) < minSalary) return false;
-    if (onlyNew && !newIds.has(j.id)) return false;
-    return true;
-  });
-
-  filtered.sort((a,b) => {
-    for (const s of sortSpec) {
-      let av = a[s.key]; let bv = b[s.key];
-      if (s.key === "created_at") { av = av || ""; bv = bv || ""; }
-      const cmp = (av > bv) - (av < bv);
-      if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp;
+    if (isLoading) {
+      btn.disabled = true;
+      btn.setAttribute("aria-busy", "true");
+      btn.classList.add("opacity-70", "cursor-not-allowed");
+      if (txt) txt.textContent = text;
+      if (spn) spn.classList.remove("hidden");
+      setScanMsg(text, "info");
+    } else {
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+      btn.classList.remove("opacity-70", "cursor-not-allowed");
+      if (txt) txt.textContent = "Scan selected";
+      if (spn) spn.classList.add("hidden");
+      setScanMsg("", "info");
     }
-    return 0;
-  });
+  }
 
-  pageSize = parseInt(qs("#pageSize")?.value || "50");
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  if (page > totalPages) page = totalPages;
-  const start = (page-1)*pageSize;
-  const rows = filtered.slice(start, start+pageSize);
+  const state = {
+    companies: [],
+    jobs: [],
+    filtered: [],
+    page: 1,
+    pageSize: 50,
+    sortSpec: [{ key: "score", dir: "desc" }],
+    lastScanIds: new Set(loadLocal("lastScanIds", [])),
+    newIds: new Set(),
+    initialized: false,
+    scanInFlight: false,
+    scanAbort: null,
+    autoRefreshTimer: null,
+  };
 
-  const body = qs("#jobsBody");
-  if (!body) return;
-  body.innerHTML = "";
-  rows.forEach((j) => {
-    const tr = document.createElement("tr");
-    tr.className = "hover:bg-gray-50 cursor-pointer";
-    tr.addEventListener("click", () => openDrawer(j));
-    tr.innerHTML = `
-      <td class="p-2">${j.score ?? ""}</td>
-      <td class="p-2">${escapeHtml(j.title || "")}${badgeWorkMode(j)}</td>
-      <td class="p-2">${escapeHtml(j.company || "")}</td>
-      <td class="p-2">${escapeHtml(j.location || "")}</td>
-      <td class="p-2">${escapeHtml(j.provider || "")}</td>
-      <td class="p-2">${fmtDate(j.created_at)}</td>
-      <td class="p-2"><a class="text-blue-600 underline" target="_blank" rel="noopener" href="${j.url}" onclick="event.stopPropagation()">open</a></td>
-    `;
-    body.appendChild(tr);
-  });
+  async function fetchJSON(path, { method = "GET", body = undefined, signal = undefined } = {}) {
+    const rid = uid();
+    const t0 = performance.now();
+    debug("request", rid, method, path, body);
 
-  qs("#jobsCount") && (qs("#jobsCount").textContent = String(filtered.length));
-  qs("#newCount") && (qs("#newCount").textContent = String(newIds.size));
-  qs("#pageInfo") && (qs("#pageInfo").textContent = `${page} / ${totalPages}`);
-}
-
-async function discover() {
-  setDiscoverMsg("Discovering...", "info");
-  console.log("[jobfinder] Discover clicked");
-  const cities = (qs("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const keywords = (qs("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const sourcesEl = qs("#sources");
-  const sources = sourcesEl?.tagName === "SELECT" 
-    ? Array.from(sourcesEl.selectedOptions || []).map(o => o.value)
-    : (sourcesEl?.value || "greenhouse,lever,ashby,smartrecruiters").split(",").map(s => s.trim());
-  const limit = parseInt(qs("#limit")?.value || "1000", 10);
-  try {
-    const r = await fetch("/discover", {
-      method: "POST",
-      headers: {"content-type":"application/json"},
-      body: JSON.stringify({cities, keywords, sources, limit})
+    const headers = { "content-type": "application/json", "x-jobfinder-request-id": rid };
+    const resp = await fetch(path, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal,
     });
-    const data = await r.json();
-    if (!r.ok) {
-      const msg = (data && data.error) ? String(data.error) : "Discover failed";
-      const missing = /SERPAPI.*KEY|MISSING API KEY/i.test(msg);
-      if (missing) {
-        await loadSeedCompanies("SerpAPI key missing; loaded seed data.", cities);
+
+    let data = null;
+    const text = await resp.text();
+    try { data = text ? JSON.parse(text) : null; }
+    catch { data = { error: text || "Invalid JSON response" }; }
+
+    const dt = Math.round(performance.now() - t0);
+    debug("response", rid, resp.status, `${dt}ms`, data);
+
+    return { ok: resp.ok, status: resp.status, data };
+  }
+
+  function renderCompanies() {
+    const body = qs("#companiesBody");
+    if (!body) return;
+    body.innerHTML = "";
+
+    state.companies.forEach((c, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="p-2"><input type="checkbox" class="rowSel" data-i="${i}"></td>
+        <td class="p-2">${escapeHtml(c.name || "")}</td>
+        <td class="p-2">${escapeHtml(c.provider || "")}</td>
+        <td class="p-2">${escapeHtml(c.org || "")}</td>
+      `;
+      body.appendChild(tr);
+    });
+
+    const selectAll = qs("#selectAll");
+    if (selectAll) selectAll.checked = false;
+  }
+
+  function badgeWorkMode(job) {
+    const wm = (job?.extra?.work_mode || "").toLowerCase();
+    if (!wm) return "";
+    const label = wm === "remote" ? "Remote" : wm === "hybrid" ? "Hybrid" : "Onsite";
+    return `<span class="text-xs bg-gray-100 rounded px-2 py-1 ml-2">${label}</span>`;
+  }
+
+  function extractSkills(job) {
+    const kwEl = qs("#keywords");
+    const kws = (kwEl?.value || "")
+      .split(",")
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean);
+
+    const text = `${job?.title || ""} ${sanitizeToText(job?.extra?.description || "")}`.toLowerCase();
+    const hits = new Set();
+    for (const k of kws) if (k && text.includes(k)) hits.add(k);
+    return Array.from(hits).slice(0, 20);
+  }
+
+  function openDrawer(job) {
+    const el = qs("#drawer");
+    const d = qs("#drawerContent");
+    if (!el || !d) return;
+
+    const skills = extractSkills(job);
+    d.innerHTML = `
+      <h3 class="text-xl font-semibold mb-1">${escapeHtml(job.title || "")}</h3>
+      <div class="text-sm text-gray-600 mb-3">
+        ${escapeHtml(job.company || "")} • ${escapeHtml(job.location || "N/A")} • ${escapeHtml(job.provider || "")}
+        ${badgeWorkMode(job)}
+      </div>
+      <div class="flex flex-wrap gap-1 mb-3">
+        ${(skills.map(s => `<span class="text-xs bg-gray-100 rounded px-2 py-1">${escapeHtml(s)}</span>`).join(" "))}
+      </div>
+      <div class="text-sm mb-2">Reasons: ${escapeHtml(job.reasons || "")}</div>
+      <div class="text-sm whitespace-pre-wrap">${escapeHtml(sanitizeToText(job.extra?.description || ""))}</div>
+    `;
+    el.classList.remove("hidden");
+  }
+
+  function matchRemote(job, sel) {
+    const wm = (job?.extra?.work_mode || "").toLowerCase();
+    if (sel === "any") return true;
+    if (sel === "hybrid") return wm === "hybrid";
+    if (sel === "true")  return wm ? wm === "remote" : Boolean(job.remote) === true;
+    if (sel === "false") return wm ? wm === "onsite" : Boolean(job.remote) === false;
+    return true;
+  }
+
+  function computeFilteredJobs() {
+    const prov = qs("#fltProvider")?.value || "";
+    const remoteSel = qs("#fltRemote")?.value || "any";
+    const minScore = parseInt(qs("#fltScore")?.value || "0", 10) || 0;
+    const minSalary = parseInt(qs("#fltSalary")?.value || "0", 10) || 0;
+    const onlyNew = !!qs("#onlyNew")?.checked;
+
+    const list = state.jobs.filter(j => {
+      if (prov && (j.provider || "") !== prov) return false;
+      if (!matchRemote(j, remoteSel)) return false;
+      if ((j.score || 0) < minScore) return false;
+
+      const smin = Number(j?.extra?.salary_min || 0);
+      const smax = Number(j?.extra?.salary_max || 0);
+      if (minSalary && Math.max(smin, smax) < minSalary) return false;
+
+      if (onlyNew && !state.newIds.has(j.id)) return false;
+      return true;
+    });
+
+    const spec = state.sortSpec.length ? state.sortSpec : [{ key: "score", dir: "desc" }];
+    list.sort((a, b) => {
+      for (const s of spec) {
+        let av = a[s.key], bv = b[s.key];
+        if (s.key === "created_at") { av = av || ""; bv = bv || ""; }
+        const cmp = (av > bv) - (av < bv);
+        if (cmp !== 0) return s.dir === "asc" ? cmp : -cmp;
+      }
+      return 0;
+    });
+
+    return list;
+  }
+
+  function renderJobs() {
+    state.filtered = computeFilteredJobs();
+
+    state.pageSize = parseInt(qs("#pageSize")?.value || "50", 10) || 50;
+    const totalPages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+
+    if (state.page < 1) state.page = 1;
+    if (state.page > totalPages) state.page = totalPages;
+
+    const start = (state.page - 1) * state.pageSize;
+    const rows = state.filtered.slice(start, start + state.pageSize);
+
+    const body = qs("#jobsBody");
+    if (!body) return;
+
+    body.innerHTML = "";
+    for (const j of rows) {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-gray-50 cursor-pointer";
+      tr.addEventListener("click", () => openDrawer(j));
+      tr.innerHTML = `
+        <td class="p-2">${j.score ?? ""}</td>
+        <td class="p-2">${escapeHtml(j.title || "")}${badgeWorkMode(j)}</td>
+        <td class="p-2">${escapeHtml(j.company || "")}</td>
+        <td class="p-2">${escapeHtml(j.location || "")}</td>
+        <td class="p-2">${escapeHtml(j.provider || "")}</td>
+        <td class="p-2">${fmtDate(j.created_at)}</td>
+        <td class="p-2"><a class="text-blue-600 underline" target="_blank" rel="noopener" href="${j.url}" onclick="event.stopPropagation()">open</a></td>
+      `;
+      body.appendChild(tr);
+    }
+
+    setText(qs("#jobsCount"), String(state.filtered.length));
+    setText(qs("#newCount"), String(state.newIds.size));
+    setText(qs("#pageInfo"), `${state.page} / ${totalPages}`);
+
+    const prev = qs("#prevPage");
+    const next = qs("#nextPage");
+    if (prev) prev.disabled = state.page <= 1;
+    if (next) next.disabled = state.page >= totalPages;
+  }
+
+  function showPanelsAfterDiscover() {
+    const companiesPanel = qs("#companiesPanel");
+    const scanFiltersPanel = qs("#scanFiltersPanel");
+    if (companiesPanel) companiesPanel.style.display = "";
+    if (scanFiltersPanel) scanFiltersPanel.style.display = "";
+  }
+
+  async function loadSeedCompanies(reasonText, cities = []) {
+    setDiscoverMsg("Loading seed companies...", "info");
+    try {
+      const r = await fetch("/static/companies.json", { cache: "no-cache" });
+      const data = await r.json();
+      const list = data?.companies ?? data;
+
+      if (!Array.isArray(list) || !list.length) {
+        setDiscoverMsg("Seed file empty or invalid", "error");
         return;
       }
-      setDiscoverMsg(msg, "error");
-      return;
-    }
-    companies = data.companies || [];
-    renderCompanies();
-    showPanelsAfterDiscover();
-    setDiscoverMsg(`Found ${companies.length} companies`, "ok");
-  } catch (e) {
-    console.error("[jobfinder] Discover error", e);
-    setDiscoverMsg("Network error", "error");
-  }
-}
 
-async function loadSeedCompanies(reasonText, cities = []) {
-  setDiscoverMsg("Loading seed companies...", "info");
-  try {
-    const r = await fetch("/static/companies.json", {cache: "no-cache"});
-    const data = await r.json();
-    const list = data?.companies ?? data;
-    if (!Array.isArray(list) || !list.length) {
-      setDiscoverMsg("Seed file empty or invalid", "error");
-      return;
-    }
-    // Filter companies by cities if cities are provided
-    let filtered = list;
-    if (cities && cities.length > 0) {
-      const normalizedCities = cities.map(c => c.trim().toLowerCase()).filter(Boolean);
-      filtered = list.filter(c => {
-        const companyCity = (c.city || "").toLowerCase();
-        // Match if any city from the list is found in the company's city (case-insensitive substring match)
-        return normalizedCities.some(city => companyCity.includes(city));
-      });
-    }
-    companies = filtered;
-    renderCompanies();
-    showPanelsAfterDiscover();
-    setDiscoverMsg(reasonText || `Loaded ${companies.length} seed companies`, "ok");
-  } catch (e) {
-    console.error("[jobfinder] Seed load error", e);
-    setDiscoverMsg("Failed to load seed companies", "error");
-  }
-}
-
-function selectedCompanies() {
-  return qsa(".rowSel:checked").map(cb => companies[parseInt(cb.dataset.i, 10)]);
-}
-
-async function scanSelected() {
-  console.log("[jobfinder] Scan clicked");
-  const selected = selectedCompanies();
-  if (!selected.length) { setDiscoverMsg("Select at least one company", "error"); return; }
-  const cities = (qs("#cities")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const keywords = (qs("#keywords")?.value || "").split(",").map(s => s.trim()).filter(Boolean);
-  const radius_km = parseFloat(qs("#radius")?.value || "0");
-  const body = {
-    cities, keywords, companies: selected,
-    geo: radius_km > 0 ? { cities, radius_km } : undefined,
-    provider: (qs("#fltProvider")?.value || undefined),
-    remote: qs("#fltRemote")?.value || "any",
-    min_score: parseInt(qs("#fltScore")?.value || "0"),
-    max_age_days: (qs("#fltAge")?.value ? parseInt(qs("#fltAge").value) : undefined)
-  };
-  setScanLoading(true);
-  try {
-    const r = await fetch("/scan", { method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify(body)});
-    const data = await r.json();
-    if (!r.ok) { alert(data.error || "Scan failed"); return; }
-    const prev = new Set(loadLocal("lastScanIds", []));
-    lastScanIds = prev;
-    jobs = data.results || [];
-    const curIds = new Set(jobs.map(j => j.id));
-    newIds = new Set([...curIds].filter(x => !prev.has(x)));
-    saveLocal("lastScanIds", [...curIds]);
-    page = 1;
-    renderJobs();
-  } catch (e) {
-    console.error("[jobfinder] Scan error", e);
-  } finally {
-    setScanLoading(false);
-  }
-}
-
-function showPanelsAfterDiscover() {
-  const companiesPanel = qs("#companiesPanel");
-  const scanFiltersPanel = qs("#scanFiltersPanel");
-  if (companiesPanel) companiesPanel.style.display = "";
-  if (scanFiltersPanel) scanFiltersPanel.style.display = "";
-}
-
-function saveCurrentSearch() {
-  const key = prompt("Save search as name:", "");
-  if (!key) return;
-  const val = {
-    cities: qs("#cities")?.value, keywords: qs("#keywords")?.value,
-    sources: Array.from(qs("#sources")?.selectedOptions || []).map(o=>o.value), limit: qs("#limit")?.value,
-    radius: qs("#radius")?.value,
-    fltProvider: qs("#fltProvider")?.value, fltRemote: qs("#fltRemote")?.value,
-    fltScore: qs("#fltScore")?.value, fltAge: qs("#fltAge")?.value, fltSalary: qs("#fltSalary")?.value
-  };
-  const all = loadLocal("savedSearches", {});
-  all[key] = val; saveLocal("savedSearches", all);
-  saveSearchSelect();
-}
-
-function saveSearchSelect() {
-  const sel = qs("#savedSearches"); if (!sel) return;
-  const all = loadLocal("savedSearches", {});
-  sel.innerHTML = `<option value="">-- Saved searches --</option>` + Object.keys(all).map(k=>`<option>${escapeHtml(k)}</option>`).join("");
-  sel.onchange = () => {
-    const v = sel.value; if (!v) return;
-    const s = loadLocal("savedSearches", {})[v];
-    if (!s) return;
-    qs("#cities") && (qs("#cities").value = s.cities || "");
-    qs("#keywords") && (qs("#keywords").value = s.keywords || "");
-    const src = qs("#sources"); if (src) Array.from(src.options).forEach(o => o.selected = (s.sources||[]).includes(o.value));
-    qs("#limit") && (qs("#limit").value = s.limit || "50");
-    qs("#radius") && (qs("#radius").value = s.radius || "0");
-    qs("#fltProvider") && (qs("#fltProvider").value = s.fltProvider || "");
-    qs("#fltRemote") && (qs("#fltRemote").value = s.fltRemote || "any");
-    qs("#fltScore") && (qs("#fltScore").value = s.fltScore || "0");
-    qs("#fltAge") && (qs("#fltAge").value = s.fltAge || "");
-    qs("#fltSalary") && (qs("#fltSalary").value = s.fltSalary || "");
-  };
-}
-
-function setupSort() {
-  qsa("th.sort").forEach(th => {
-    th.addEventListener("click", (e) => {
-      const key = th.dataset.key;
-      const shift = e.shiftKey;
-      const existing = sortSpec.find(s => s.key === key);
-      if (existing) {
-        existing.dir = existing.dir === "asc" ? "desc" : "asc";
-      } else {
-        if (!shift) sortSpec = [];
-        sortSpec.push({ key, dir: "asc" });
+      let filtered = list;
+      if (cities && cities.length > 0) {
+        const normalizedCities = cities.map(c => c.trim().toLowerCase()).filter(Boolean);
+        filtered = list.filter(c => {
+          const companyCity = (c.city || "").toLowerCase();
+          return normalizedCities.some(city => companyCity.includes(city));
+        });
       }
+
+      state.companies = filtered;
+      renderCompanies();
+      showPanelsAfterDiscover();
+      setDiscoverMsg(reasonText || `Loaded ${state.companies.length} seed companies`, "ok");
+    } catch (e) {
+      err("Seed load error", e);
+      setDiscoverMsg("Failed to load seed companies", "error");
+    }
+  }
+
+  function parseListInput(sel) {
+    return (qs(sel)?.value || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  async function discover() {
+    setDiscoverMsg("Discovering...", "info");
+    log("Discover clicked");
+
+    const cities = parseListInput("#cities");
+    const keywords = parseListInput("#keywords");
+
+    const DEFAULT_SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters"];
+    const sourcesEl = qs("#sources");
+
+    let sources =
+      sourcesEl?.tagName === "SELECT"
+        ? Array.from(sourcesEl.selectedOptions || []).map(o => o.value).filter(Boolean)
+        : (sourcesEl?.value || DEFAULT_SOURCES.join(","))
+            .split(",").map(s => s.trim()).filter(Boolean);
+
+    // If using multi-select and user selected nothing -> default back
+    if (!sources.length) sources = DEFAULT_SOURCES.slice();
+
+    const limit = parseInt(qs("#limit")?.value || "1000", 10) || 1000;
+
+    try {
+      const { ok, status, data } = await fetchJSON("/discover", {
+        method: "POST",
+        body: { cities, keywords, sources, limit }
+      });
+
+      if (!ok) {
+        const msg = (data && data.error) ? String(data.error) : "Discover failed";
+
+        const missingKey = /SERPAPI.*KEY|MISSING API KEY/i.test(msg);
+        const notImplemented = status === 501 || /not implemented/i.test(msg);
+
+        // Robust fallback: if SerpAPI is missing OR discover isn't implemented, use seed file
+        if (missingKey || notImplemented) {
+          await loadSeedCompanies(`${msg}; loaded seed data.`, cities);
+          return;
+        }
+
+        setDiscoverMsg(msg, "error");
+        return;
+      }
+
+      state.companies = data?.companies || [];
+      renderCompanies();
+      showPanelsAfterDiscover();
+      setDiscoverMsg(
+        state.companies.length ? `Found ${state.companies.length} companies` : "No companies found",
+        state.companies.length ? "ok" : "error"
+      );
+    } catch (e) {
+      err("Discover error", e);
+      setDiscoverMsg("Network error", "error");
+    }
+  }
+
+  function selectedCompanies() {
+    return qsa(".rowSel:checked")
+      .map(cb => state.companies[parseInt(cb.dataset.i, 10)])
+      .filter(Boolean);
+  }
+
+  async function scanSelected({ silent = false } = {}) {
+    if (state.scanInFlight) {
+      debug("scan: already running, skipping");
+      return;
+    }
+
+    const selected = selectedCompanies();
+    if (!selected.length) {
+      if (!silent) setDiscoverMsg("Select at least one company", "error");
+      return;
+    }
+
+    const cities = parseListInput("#cities");
+    const keywords = parseListInput("#keywords");
+    const radius_km = parseFloat(qs("#radius")?.value || "0") || 0;
+
+    const body = {
+      cities,
+      keywords,
+      companies: selected,
+      geo: radius_km > 0 ? { cities, radius_km } : undefined,
+      provider: (qs("#fltProvider")?.value || undefined),
+      remote: qs("#fltRemote")?.value || "any",
+      min_score: parseInt(qs("#fltScore")?.value || "0", 10) || 0,
+      max_age_days: (qs("#fltAge")?.value ? (parseInt(qs("#fltAge").value, 10) || undefined) : undefined),
+    };
+
+    try { state.scanAbort?.abort?.(); } catch {}
+    state.scanAbort = new AbortController();
+
+    state.scanInFlight = true;
+    setScanLoading(true);
+
+    try {
+      const { ok, data } = await fetchJSON("/scan", { method: "POST", body, signal: state.scanAbort.signal });
+      if (!ok) {
+        const msg = (data && data.error) ? String(data.error) : "Scan failed";
+        setScanMsg(msg, "error");
+        return;
+      }
+
+      const prev = new Set(loadLocal("lastScanIds", []));
+      state.lastScanIds = prev;
+
+      state.jobs = data.results || [];
+      const curIds = new Set(state.jobs.map(j => j?.id).filter(Boolean));
+      state.newIds = new Set([...curIds].filter(x => !prev.has(x)));
+      saveLocal("lastScanIds", [...curIds]);
+
+      state.page = 1;
+      renderJobs();
+      setScanMsg(`Loaded ${state.jobs.length} jobs (${state.newIds.size} new)`, "ok");
+    } catch (e) {
+      if (e?.name === "AbortError") return;
+      err("Scan error", e);
+      setScanMsg("Scan failed (network error)", "error");
+    } finally {
+      state.scanInFlight = false;
+      setScanLoading(false);
+    }
+  }
+
+  function clearAll() {
+    state.companies = [];
+    state.jobs = [];
+    state.filtered = [];
+    state.page = 1;
+    state.newIds = new Set();
+    renderCompanies();
+    renderJobs();
+    setDiscoverMsg("", "info");
+    setScanMsg("", "info");
+  }
+
+  function setupSort() {
+    qsa("th.sort").forEach(th => {
+      th.addEventListener("click", (e) => {
+        const key = th.dataset.key;
+        const shift = e.shiftKey;
+
+        const existing = state.sortSpec.find(s => s.key === key);
+        if (existing) {
+          existing.dir = existing.dir === "asc" ? "desc" : "asc";
+        } else {
+          if (!shift) state.sortSpec = [];
+          state.sortSpec.push({ key, dir: "asc" });
+        }
+        renderJobs();
+      });
+    });
+  }
+
+  function setupPaging() {
+    qs("#prevPage")?.addEventListener("click", () => {
+      state.page = Math.max(1, state.page - 1);
       renderJobs();
     });
-  });
-}
+    qs("#nextPage")?.addEventListener("click", () => {
+      state.page = state.page + 1;
+      renderJobs();
+    });
+    qs("#pageSize")?.addEventListener("change", () => {
+      state.page = 1;
+      renderJobs();
+    });
+  }
 
-function setupPaging() {
-  qs("#prevPage")?.addEventListener("click", () => { if (page>1){ page--; renderJobs(); }});
-  qs("#nextPage")?.addEventListener("click", () => { page++; renderJobs(); });
-  qs("#pageSize")?.addEventListener("change", () => { page=1; renderJobs(); });
-}
+  function setupAutoRefresh() {
+    const chk = qs("#autoRefresh");
+    const sel = qs("#refreshInterval");
+    const update = () => {
+      if (state.autoRefreshTimer) {
+        clearInterval(state.autoRefreshTimer);
+        state.autoRefreshTimer = null;
+      }
+      if (chk && sel && chk.checked) {
+        const seconds = parseInt(sel.value, 10) || 30;
+        state.autoRefreshTimer = setInterval(() => scanSelected({ silent: true }), seconds * 1000);
+      }
+    };
+    chk?.addEventListener("change", update);
+    sel?.addEventListener("change", update);
+    update();
+  }
 
-function setupAutoRefresh() {
-  const chk = qs("#autoRefresh");
-  const sel = qs("#refreshInterval");
-  let timer = null;
-  const update = () => {
-    if (timer) { clearInterval(timer); timer = null; }
-    if (chk && sel && chk.checked) {
-      timer = setInterval(() => { scanSelected(); }, parseInt(sel.value,10)*1000);
-    }
-  };
-  chk && chk.addEventListener("change", update);
-  sel && sel.addEventListener("change", update);
-  update();
-}
+  function setupDrawer() {
+    const close = qs("#closeDrawer");
+    const drawer = qs("#drawer");
+    close?.addEventListener("click", () => drawer?.classList.add("hidden"));
+    drawer?.addEventListener("click", (e) => { if (e.target?.id === "drawer") drawer.classList.add("hidden"); });
+  }
 
-function setupDrawer() {
-  const close = qs("#closeDrawer");
-  const drawer = qs("#drawer");
-  close && close.addEventListener("click", () => drawer?.classList.add("hidden"));
-  drawer && drawer.addEventListener("click", (e) => { if (e.target.id === "drawer") drawer.classList.add("hidden"); });
-}
+  function setupFilters() {
+    ["#fltProvider", "#fltRemote", "#fltScore", "#fltAge", "#fltSalary", "#onlyNew"].forEach(id => {
+      qs(id)?.addEventListener("change", () => {
+        state.page = 1;
+        renderJobs();
+      });
+    });
+  }
 
-function init() {
-  if (initialized) return;
-  initialized = true;
-  console.log("[jobfinder] init");
-  renderCompanies();
-  renderJobs();
-  setupSort();
-  setupPaging();
-  setupAutoRefresh();
-  setupDrawer();
-  saveSearchSelect();
+  function init() {
+    if (state.initialized) return;
+    state.initialized = true;
 
-  qs("#btnDiscover")?.addEventListener("click", discover);
-  qs("#btnScanSelected")?.addEventListener("click", scanSelected);
-  qs("#btnClear")?.addEventListener("click", () => { companies=[]; jobs=[]; renderCompanies(); renderJobs(); });
-  qs("#selectAll")?.addEventListener("change", (e) => { qsa(".rowSel").forEach(cb => cb.checked = e.target.checked); });
+    log("app.js loaded");
+    renderCompanies();
+    renderJobs();
+    setupSort();
+    setupPaging();
+    setupAutoRefresh();
+    setupDrawer();
+    setupFilters();
 
-  ["#fltProvider","#fltRemote","#fltScore","#fltAge","#fltSalary","#onlyNew"].forEach(id => {
-    const el = qs(id); if (el) el.addEventListener("change", renderJobs);
-  });
-  qs("#btnSaveSearch")?.addEventListener("click", saveCurrentSearch);
-}
+    qs("#btnDiscover")?.addEventListener("click", discover);
+    qs("#btnScanSelected")?.addEventListener("click", () => scanSelected({ silent: false }));
+    qs("#btnClear")?.addEventListener("click", clearAll);
 
-document.addEventListener("DOMContentLoaded", init);
-window.addEventListener("load", init);
+    qs("#selectAll")?.addEventListener("change", (e) => {
+      const checked = !!e.target.checked;
+      qsa(".rowSel").forEach(cb => cb.checked = checked);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  window.addEventListener("load", init);
+})();
