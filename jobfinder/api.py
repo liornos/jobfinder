@@ -1,6 +1,6 @@
 # file: jobfinder/api.py
 from __future__ import annotations
-import argparse, os
+import argparse, json, logging, os
 from typing import Any, Dict, List
 
 from flask import Blueprint, Flask, jsonify, render_template, request
@@ -16,6 +16,7 @@ from . import filtering, pipeline
 from .logging_utils import setup_logging
 
 api = Blueprint("api", __name__)
+log = logging.getLogger(__name__)
 
 def _parse_list(value: Any) -> List[str]:
     if value is None:
@@ -32,13 +33,20 @@ def discover() -> Any:
     sources = _parse_list(body.get("sources"))
     limit = int(body.get("limit") or 50)
 
+    log.info("API /discover called | cities=%s | keywords=%s | sources=%s | limit=%s",
+             cities, keywords, sources, limit)
+
     # If you have a pipeline.discover, use it; else just echo back companies via UI discover flow.
     discover_fn = getattr(pipeline, "discover", None)
     if callable(discover_fn):
         try:
             companies = discover_fn(cities=cities, keywords=keywords, sources=sources or None, limit=limit)
+            safe_companies = companies or []
+            log.info("API /discover result count=%d | companies=%s",
+                     len(safe_companies), json.dumps(safe_companies))
             return jsonify({"companies": companies})
         except Exception as e:
+            log.exception("API /discover failed: %s", e)
             return jsonify({"error": str(e)}), 500
     return jsonify({"error": "discover() not implemented in pipeline"}), 501
 
@@ -56,6 +64,9 @@ def scan() -> Any:
     geo = body.get("geo")
     title_keywords = _parse_list(body.get("title_keywords") or body.get("title") or body.get("fltTitle"))
 
+    log.info("API /scan called | provider=%s | cities=%s | companies=%d | remote=%s | keywords=%s | title_keywords=%s",
+             provider, cities, len(companies or []), remote, keywords, title_keywords)
+
     try:
         results: List[Dict[str, Any]] = pipeline.scan(
             companies=companies,
@@ -68,10 +79,15 @@ def scan() -> Any:
             geo=geo,
         )
     except Exception as e:
+        log.exception("API /scan failed: %s", e)
         return jsonify({"error": str(e)}), 500
 
     if title_keywords:
         results = filtering.filter_by_title_keywords(results, title_keywords)
+
+    safe_results = results or []
+    preview = [{"company": r.get("company"), "title": r.get("title"), "id": r.get("id")} for r in safe_results[:10]]
+    log.info("API /scan result count=%d | jobs_preview=%s", len(safe_results), json.dumps(preview))
 
     return jsonify({"results": results})
 
