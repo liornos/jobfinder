@@ -319,7 +319,8 @@
     const cities = parseListInput("#cities");
     const keywords = parseListInput("#keywords");
 
-    const DEFAULT_SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters"];
+    // Keep aligned with backend pipeline._PROVIDER_HOST
+    const DEFAULT_SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims"];
     const sourcesEl = qs("#sources");
 
     let sources =
@@ -403,6 +404,12 @@
 
     try { state.scanAbort?.abort?.(); } catch {}
     state.scanAbort = new AbortController();
+    let timedOut = false;
+    const timeoutMs = 30000;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      try { state.scanAbort.abort("timeout"); } catch {}
+    }, timeoutMs);
 
     state.scanInFlight = true;
     setScanLoading(true);
@@ -427,10 +434,14 @@
       renderJobs();
       setScanMsg(`Loaded ${state.jobs.length} jobs (${state.newIds.size} new)`, "ok");
     } catch (e) {
-      if (e?.name === "AbortError") return;
+      if (e?.name === "AbortError") {
+        if (timedOut) setScanMsg("Scan timed out, please try again or narrow selection", "error");
+        return;
+      }
       err("Scan error", e);
       setScanMsg("Scan failed (network error)", "error");
     } finally {
+      clearTimeout(timeoutId);
       state.scanInFlight = false;
       setScanLoading(false);
     }
