@@ -98,7 +98,8 @@ def score(job: Job, keywords: List[str], cities: List[str],
     if job.created_at:
         import datetime as _dt
         try:
-            days = max(0, (_dt.datetime.utcnow() - job.created_at).days)
+            now = _dt.datetime.now(job.created_at.tzinfo or _dt.timezone.utc)
+            days = max(0, (now - job.created_at).days)
             s += max(0, 30 - days); reasons.append(f"fresh-{days}d")
         except Exception:
             pass
@@ -117,7 +118,14 @@ def score(job: Job, keywords: List[str], cities: List[str],
 def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Server-side filters: provider/remote/min_score/max_age_days + cities."""
     out=[]
-    prov = set(map(str.lower, filters.get("provider", []))) if filters.get("provider")            else (set([filters.get("provider")]) if filters.get("provider") else None)
+    raw_provider = filters.get("provider")
+    if raw_provider:
+        if isinstance(raw_provider, (list, tuple, set)):
+            prov = {str(p).lower() for p in raw_provider if p}
+        else:
+            prov = {str(raw_provider).lower()}
+    else:
+        prov = None
     remote = (filters.get("remote") or "").lower() if filters.get("remote") is not None else None
     min_score = filters.get("min_score")
     max_age_days = filters.get("max_age_days")
