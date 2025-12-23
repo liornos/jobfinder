@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 from typing import List, Tuple, Optional, Dict, Any
+from datetime import datetime, timezone
 from .models import Job
 from .utils.geo import haversine_km
 try:
@@ -10,6 +11,54 @@ except Exception:
 
 def normalize(s: str) -> str:
     return re.sub(r"\s+", " ", s.strip().lower())
+
+def _parse_created_at(val: Any) -> Optional[datetime]:
+    """
+    Best-effort parser for provider created_at values (ISO string, Z suffix, or epoch ms).
+    Returns timezone-aware datetime in UTC or None on failure.
+    """
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val if val.tzinfo else val.replace(tzinfo=timezone.utc)
+
+    if isinstance(val, (int, float)):
+        try:
+            ts = float(val)
+            if ts > 1e12:
+                ts /= 1000.0  # likely milliseconds
+            return datetime.fromtimestamp(ts, tz=timezone.utc)
+        except Exception:
+            return None
+
+    s = str(val).strip()
+    if not s:
+        return None
+
+    if s.isdigit():
+        try:
+            ts = float(s)
+            if len(s) >= 13:
+                ts /= 1000.0
+            return datetime.fromtimestamp(ts, tz=timezone.utc)
+        except Exception:
+            pass
+
+    cleaned = s[:-1] + "+00:00" if s.endswith("Z") else s
+    cleaned = re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", cleaned)
+
+    for cand in (cleaned, s):
+        try:
+            dt = datetime.fromisoformat(cand)
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+
+    try:
+        dt = datetime.strptime(s[:10], "%Y-%m-%d")
+        return dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
 
 def _extract_salary(desc: str):
     import re as _re
@@ -104,12 +153,10 @@ def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[D
         if min_score is not None and (r.get("score") or 0) < int(min_score): continue
 
         if max_age_days is not None and r.get("created_at"):
-            try:
-                from datetime import datetime, timezone
-                dt = datetime.fromisoformat(str(r["created_at"]))
-                age = (datetime.now(timezone.utc) - (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc))).days
+            dt = _parse_created_at(r.get("created_at"))
+            if dt:
+                age = (datetime.now(timezone.utc) - dt).days
                 if age > int(max_age_days): continue
-            except Exception: pass
 
         out.append(r)
     return out

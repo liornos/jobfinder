@@ -165,16 +165,29 @@ def _apply_filters_compat(
     remote: str,
     min_score: int,
     max_age_days: Optional[int],
+    cities: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Introspects filtering.apply_filters and passes only supported kwargs.
     Falls back to simpler call patterns if needed.
     """
+    filt = {
+        "provider": provider,
+        "remote": remote,
+        "min_score": min_score,
+        "max_age_days": max_age_days,
+        "cities": cities,
+    }
     try:
         sig = inspect.signature(apply_filters)
         param_names = {p.name for p in sig.parameters.values()}
         # exclude the first positional param if it's named 'jobs'
         param_names.discard("jobs")
+        param_names.discard("rows")
+
+        if "filters" in param_names:
+            return apply_filters(results, filt)
+
         kwargs = {}
         if "provider" in param_names:
             kwargs["provider"] = provider
@@ -184,6 +197,8 @@ def _apply_filters_compat(
             kwargs["min_score"] = min_score
         if "max_age_days" in param_names:
             kwargs["max_age_days"] = max_age_days
+        if "cities" in param_names:
+            kwargs["cities"] = cities
         return apply_filters(results, **kwargs)
     except TypeError:
         # very old signature: try progressively simpler forms
@@ -339,6 +354,7 @@ def scan(
         remote=remote,
         min_score=int(min_score or 0),
         max_age_days=max_age_days,
+        cities=cities,
     )
 
     log.info("scan() done | results=%d", len(results))
