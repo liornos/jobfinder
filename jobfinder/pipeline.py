@@ -12,6 +12,7 @@ import sys
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
+from concurrent.futures import ThreadPoolExecutor
 
 from .filtering import apply_filters, score
 
@@ -314,25 +315,36 @@ def scan(
     keywords = _as_str_list(keywords)
     prov_filter = (str(provider).strip().lower()) if (provider is not None and provider != "") else None
 
-    results: List[Dict[str, Any]] = []
-
+    # Preload provider fetch functions once; avoid repeated imports inside threads.
+    fetchers: Dict[str, Any] = {}
     for c in companies:
         cprov = (str(c.get("provider") or "")).strip().lower()
         if prov_filter and cprov != prov_filter:
             continue
         if cprov not in PROVIDERS:
-            log.warning("Unknown provider '%s' for company %s", cprov, c)
             continue
+        if cprov in fetchers:
+            continue
+        mod = _import_provider(cprov)
+        fetchers[cprov] = getattr(mod, "fetch_jobs", None) if mod else None
+
+    def _process_company(c: Dict[str, Any]) -> List[Dict[str, Any]]:
+        cprov = (str(c.get("provider") or "")).strip().lower()
+        if prov_filter and cprov != prov_filter:
+            return []
+        if cprov not in PROVIDERS:
+            log.warning("Unknown provider '%s' for company %s", cprov, c)
+            return []
 
         org = (str(c.get("org") or c.get("name") or "")).strip()
         if not org:
             log.warning("Missing org/name for company %s", c)
-            continue
+            return []
 
-        mod = _import_provider(cprov)
-        fetch = getattr(mod, "fetch_jobs", None) if mod else None
+        fetch = fetchers.get(cprov)
         raw_jobs = _call_fetch(fetch, org) if callable(fetch) else []
 
+        company_jobs: List[Dict[str, Any]] = []
         for rj in raw_jobs or []:
             j = _normalize_job(c, cprov, rj)
             try:
@@ -343,7 +355,16 @@ def scan(
             if cities and not _city_match(j.get("location", ""), cities):
                 continue
 
-            results.append(j)
+            company_jobs.append(j)
+        return company_jobs
+
+    results: List[Dict[str, Any]] = []
+    if companies:
+        max_workers = min(8, len(companies))
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            for company_jobs in pool.map(_process_company, companies):
+                if company_jobs:
+                    results.extend(company_jobs)
 
     results = _dedupe(results)
 
