@@ -81,7 +81,7 @@ dir env: | ? Name -like "*SERPAPI*"
 ## Web UI
 
 - Served at `/` by `jobfinder-api`
-- Flow: **Discover → select companies → Scan selected → jobs table**
+- Flow: **Discover → select companies → Scan jobs → jobs table**
 
 Run:
 ```powershell
