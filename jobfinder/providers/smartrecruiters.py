@@ -1,5 +1,6 @@
 # file: jobfinder/providers/smartrecruiters.py
 from __future__ import annotations
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from ._http import get_json
@@ -25,22 +26,45 @@ def fetch_jobs(org: str, *, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
         data = get_json(API.format(org=org), params=params)
     except Exception:
         return []
-    jobs: List[Dict[str, Any]] = []
+
+    listings: List[Dict[str, Any]] = []
     for j in (data.get("content") or []):
         loc = (j.get("location") or {})
         city = ", ".join([x for x in [loc.get("city"), loc.get("country")] if x])
         pid = j.get("id") or j.get("refNumber") or ""
-        # Always resolve the human-facing posting URL using a detail call.
-        url = _resolve_posting_url(org, pid, j.get("ref") or "")
-        jobs.append({
-            "id": pid,
+        listings.append({
+            "pid": pid,
+            "fallback": j.get("ref") or "",
             "title": j.get("name"),
             "location": city,
-            "url": url,
             "created_at": j.get("releasedDate") or j.get("createdOn"),
+        })
+        if limit and len(listings) >= limit:
+            break
+
+    if not listings:
+        return []
+
+    # Resolve posting URLs concurrently; the detail endpoint is slow when called serially.
+    def _fetch_url(item: Dict[str, Any]) -> str:
+        pid = item["pid"]
+        if not pid:
+            return item["fallback"]
+        return _resolve_posting_url(org, pid, item["fallback"])
+
+    max_workers = min(12, max(1, len(listings)))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        urls = list(pool.map(_fetch_url, listings))
+
+    jobs: List[Dict[str, Any]] = []
+    for listing, url in zip(listings, urls):
+        jobs.append({
+            "id": listing["pid"],
+            "title": listing["title"],
+            "location": listing["location"],
+            "url": url,
+            "created_at": listing["created_at"],
             "remote": None,
             "description": "",
         })
-        if limit and len(jobs) >= limit:
-            break
     return jobs
