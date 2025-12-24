@@ -8,20 +8,6 @@
           "provider":  "greenhouse"
       },
       {
-          "careers_url":  "https://boards.greenhouse.io/candex",
-          "city":  "ramat gan",
-          "name":  "candex",
-          "org":  "candex",
-          "provider":  "greenhouse"
-      },
-      {
-          "careers_url":  "https://boards.greenhouse.io/embed",
-          "city":  "ramat gan",
-          "name":  "embed",
-          "org":  "embed",
-          "provider":  "greenhouse"
-      },
-      {
           "careers_url":  "https://boards.greenhouse.io/jfrog",
           "city":  "netanya",
           "name":  "jfrog",
@@ -133,27 +119,7 @@
         "careers_url": "https://jobs.lever.co/entrata",
         "city": "Tel Aviv"
       },
-      {
-        "name": "zadara",
-        "org": "zadara",
-        "provider": "lever",
-        "careers_url": "https://jobs.lever.co/zadara",
-        "city": "Tel Aviv"
-      },
-      {
-        "name": "coda",
-        "org": "coda",
-        "provider": "lever",
-        "careers_url": "https://jobs.lever.co/coda",
-        "city": "Tel Aviv"
-      },
-      {
-        "name": "cye",
-        "org": "cye",
-        "provider": "lever",
-        "careers_url": "https://jobs.lever.co/cye",
-        "city": "Herzliya"
-      },
+      
       {
         "name": "stigg",
         "org": "stigg",
@@ -222,34 +188,6 @@
         "org": "vmware2",
         "provider": "smartrecruiters",
         "careers_url": "https://jobs.smartrecruiters.com/vmware2",
-        "city": "Herzliya"
-      },
-      {
-        "name": "forescout",
-        "org": "forescout",
-        "provider": "jobvite",
-        "careers_url": "https://jobvite.com/forescout",
-        "city": "Tel Aviv"
-      },
-      {
-        "name": "ness",
-        "org": "ness",
-        "provider": "jobvite",
-        "careers_url": "https://jobvite.com/ness",
-        "city": "Tel Aviv"
-      },
-      {
-        "name": "themergermarketgroup",
-        "org": "themergermarketgroup",
-        "provider": "jobvite",
-        "careers_url": "https://jobvite.com/themergermarketgroup",
-        "city": "Tel Aviv"
-      },
-      {
-        "name": "varonis-internal",
-        "org": "varonis-internal",
-        "provider": "jobvite",
-        "careers_url": "https://jobvite.com/varonis-internal",
         "city": "Herzliya"
       },
       {
