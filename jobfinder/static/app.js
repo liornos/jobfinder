@@ -78,7 +78,7 @@
       btn.disabled = false;
       btn.removeAttribute("aria-busy");
       btn.classList.remove("opacity-70", "cursor-not-allowed");
-      if (txt) txt.textContent = "Scan selected";
+      if (txt) txt.textContent = "Scan jobs";
       if (spn) spn.classList.add("hidden");
       setScanMsg("", "info");
     }
