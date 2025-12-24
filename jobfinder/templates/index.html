@@ -8,14 +8,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-gray-50 text-gray-900">
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 text-slate-900">
   <div class="max-w-7xl mx-auto p-6">
     <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 class="text-3xl font-bold">
-          jobfinder <span class="text-xs align-top text-gray-500">0.3.0</span>
+          jobfinder <span class="text-xs align-top text-slate-500">0.3.0</span>
         </h1>
-        <p class="text-sm text-gray-600">Discover companies & fetch jobs from ATS providers</p>
+        <p class="text-sm text-slate-600">Discover companies & fetch jobs from ATS providers</p>
       </div>
 
       <div class="text-sm flex items-center gap-3">
@@ -34,7 +34,7 @@
 
     <section class="grid lg:grid-cols-3 gap-4 mb-6">
       <!-- Discover -->
-      <div class="p-4 bg-white rounded-2xl shadow">
+      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100">
         <div class="flex items-start justify-between gap-3">
           <h2 class="font-semibold mb-2">Discover Companies by location</h2>
           <span class="text-xs text-gray-500">Tip: add multiple cities</span>
@@ -95,8 +95,8 @@
         </details>
 
         <button id="btnDiscover" type="button"
-                class="w-full mt-4 rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2
-                       hover:opacity-95 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-black/30">
+                class="w-full mt-4 rounded-2xl px-3 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 text-white flex items-center justify-center gap-2
+                       hover:shadow-lg hover:shadow-emerald-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-200">
           <span id="discoverBtnText">Discover companies</span>
           <span id="discoverSpinner"
                 class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -106,12 +106,12 @@
       </div>
 
       <!-- Companies -->
-      <div class="p-4 bg-white rounded-2xl shadow" id="companiesPanel" style="display:none;">
+      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100" id="companiesPanel" style="display:none;">
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold">Companies</h2>
           <div class="space-x-2">
             <button id="btnClear" type="button"
-                    class="rounded-xl px-3 py-2 border bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/20">
+                    class="rounded-xl px-3 py-2 border border-emerald-100 text-emerald-700 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               Clear
             </button>
           </div>
@@ -133,7 +133,7 @@
       </div>
 
       <!-- Scan Filters -->
-      <div class="p-4 bg-white rounded-2xl shadow" id="scanFiltersPanel" style="display:none;">
+      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100" id="scanFiltersPanel" style="display:none;">
         <div class="flex items-start justify-between">
           <h2 class="font-semibold mb-2">Scan Filters</h2>
           <span class="text-xs text-gray-500">Affects scan + local filtering</span>
@@ -194,8 +194,8 @@
 
         <div class="mt-4">
           <button id="btnScanSelected" type="button"
-                  class="w-full rounded-2xl px-3 py-2 bg-black text-white flex items-center justify-center gap-2
-                         hover:opacity-95 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-black/30"
+                  class="w-full rounded-2xl px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white flex items-center justify-center gap-2
+                         hover:shadow-lg hover:shadow-cyan-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-cyan-200"
                   aria-live="polite">
             <span id="scanBtnText">Scan jobs</span>
             <span id="scanSpinner" class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -212,7 +212,7 @@
     </section>
 
     <!-- Jobs -->
-    <section class="p-4 bg-white rounded-2xl shadow">
+    <section class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100">
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
         <div class="font-semibold">Jobs</div>
 
