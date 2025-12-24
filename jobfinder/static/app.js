@@ -347,7 +347,12 @@
         const notImplemented = status === 501 || /not implemented/i.test(msg);
 
         // Robust fallback: if SerpAPI is missing OR discover isn't implemented, use seed file
-        if (missingKey || notImplemented) {
+        if (missingKey) {
+          await loadSeedCompanies(null, cities);
+          return;
+        }
+
+        if (notImplemented) {
           await loadSeedCompanies(`${msg}; loaded seed data.`, cities);
           return;
         }
@@ -359,8 +364,10 @@
       state.companies = data?.companies || [];
       renderCompanies();
       showPanelsAfterDiscover();
+      const countMsg = state.companies.length ? `Found ${state.companies.length} companies` : "No companies found";
+      const prefix = "RUNNING WITH API KEY - INTERNAL ONLY";
       setDiscoverMsg(
-        state.companies.length ? `Found ${state.companies.length} companies` : "No companies found",
+        state.companies.length ? `${prefix}. ${countMsg}` : `${prefix}. ${countMsg}`,
         state.companies.length ? "ok" : "error"
       );
     } catch (e) {
