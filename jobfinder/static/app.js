@@ -405,7 +405,8 @@
     try { state.scanAbort?.abort?.(); } catch {}
     state.scanAbort = new AbortController();
     let timedOut = false;
-    const timeoutMs = 30000;
+    // Allow longer scans; backend can take >30s for many companies/providers
+    const timeoutMs = 120000;
     const timeoutId = setTimeout(() => {
       timedOut = true;
       try { state.scanAbort.abort("timeout"); } catch {}
