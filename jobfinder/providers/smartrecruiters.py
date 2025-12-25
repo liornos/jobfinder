@@ -5,14 +5,16 @@ from typing import Any, Dict, List, Optional
 from ._http import get_json
 
 API = "https://api.smartrecruiters.com/v1/companies/{org}/postings"
+DETAIL_API = "https://api.smartrecruiters.com/v1/companies/{org}/postings/{posting_id}"
 
 def fetch_jobs(org: str, *, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
     """
     Fetch jobs from SmartRecruiters public postings API.
 
-    The list endpoint omits postingUrl/applyUrl, but the public page is stable at
+    The list endpoint omits `postingUrl`, but job pages are stable at
     https://jobs.smartrecruiters.com/{org}/{id}. Building URLs locally avoids
-    one detail API call per posting, which keeps scans fast on small hosts.
+    one detail API call per posting (which was a major latency source on small
+    hosts such as Render Starter).
     """
     params = {"limit": limit or 100}
     try:
@@ -27,6 +29,7 @@ def fetch_jobs(org: str, *, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
         pid = j.get("id") or j.get("refNumber") or ""
         listings.append({
             "pid": pid,
+            "fallback": j.get("ref") or "",
             "title": j.get("name"),
             "location": city,
             "created_at": j.get("releasedDate") or j.get("createdOn"),
