@@ -1,6 +1,5 @@
 # file: jobfinder/providers/smartrecruiters.py
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 from ._http import get_json
@@ -8,19 +7,15 @@ from ._http import get_json
 API = "https://api.smartrecruiters.com/v1/companies/{org}/postings"
 DETAIL_API = "https://api.smartrecruiters.com/v1/companies/{org}/postings/{posting_id}"
 
-def _resolve_posting_url(org: str, posting_id: str, fallback: str) -> str:
-    """
-    SmartRecruiters list API does not include postingUrl/applyUrl; fetch details to get the human URL.
-    If detail fetch fails, return the fallback (typically the API ref link).
-    """
-    try:
-        data = get_json(DETAIL_API.format(org=org, posting_id=posting_id))
-        return data.get("postingUrl") or data.get("applyUrl") or fallback
-    except Exception:
-        return fallback
-
 def fetch_jobs(org: str, *, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
-    """Fetch jobs from SmartRecruiters public postings API."""
+    """
+    Fetch jobs from SmartRecruiters public postings API.
+
+    The list endpoint omits `postingUrl`, but job pages are stable at
+    https://jobs.smartrecruiters.com/{org}/{id}. Building URLs locally avoids
+    one detail API call per posting (which was a major latency source on small
+    hosts such as Render Starter).
+    """
     params = {"limit": limit or 100}
     try:
         data = get_json(API.format(org=org), params=params)
@@ -38,6 +33,7 @@ def fetch_jobs(org: str, *, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
             "title": j.get("name"),
             "location": city,
             "created_at": j.get("releasedDate") or j.get("createdOn"),
+            "url": f"https://jobs.smartrecruiters.com/{org}/{pid}" if pid else (j.get("ref") or ""),
         })
         if limit and len(listings) >= limit:
             break
@@ -45,24 +41,13 @@ def fetch_jobs(org: str, *, limit: Optional[int] = 100) -> List[Dict[str, Any]]:
     if not listings:
         return []
 
-    # Resolve posting URLs concurrently; the detail endpoint is slow when called serially.
-    def _fetch_url(item: Dict[str, Any]) -> str:
-        pid = item["pid"]
-        if not pid:
-            return item["fallback"]
-        return _resolve_posting_url(org, pid, item["fallback"])
-
-    max_workers = min(12, max(1, len(listings)))
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        urls = list(pool.map(_fetch_url, listings))
-
     jobs: List[Dict[str, Any]] = []
-    for listing, url in zip(listings, urls):
+    for listing in listings:
         jobs.append({
             "id": listing["pid"],
             "title": listing["title"],
             "location": listing["location"],
-            "url": url,
+            "url": listing["url"],
             "created_at": listing["created_at"],
             "remote": None,
             "description": "",
