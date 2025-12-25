@@ -133,3 +133,43 @@ def test_scan_respects_provider_filter(monkeypatch, provider_stub):
 
     assert len(results) == 1
     assert results[0]["id"] == "lv-1"
+
+
+def test_refresh_and_query_jobs(monkeypatch, provider_stub, tmp_path):
+    db_url = f"sqlite:///{(tmp_path / 'jobs.db').as_posix()}"
+    monkeypatch.setenv("JOBFINDER_DATABASE_URL", db_url)
+
+    provider_stub(
+        {
+            "greenhouse": {
+                "acme": [
+                    {
+                        "id": "1",
+                        "title": "Platform Engineer",
+                        "location": "New York, NY",
+                        "url": "https://example.com/1",
+                        "created_at": "2025-01-01T00:00:00Z",
+                    }
+                ]
+            }
+        }
+    )
+
+    companies = [{"name": "Acme", "org": "acme", "provider": "greenhouse"}]
+    summary = pipeline.refresh(companies=companies, cities=["New York"], keywords=["engineer"])
+    assert summary["jobs_written"] == 1
+
+    results = pipeline.query_jobs(cities=["New York"], keywords=["engineer"], only_active=True, limit=50)
+    assert len(results) == 1
+    assert results[0]["id"] == "1"
+
+    # Second refresh with no jobs should mark the existing one inactive
+    provider_stub({"greenhouse": {"acme": []}})
+    pipeline.refresh(companies=companies, cities=["New York"], keywords=["engineer"])
+
+    active_results = pipeline.query_jobs(only_active=True, limit=50)
+    assert active_results == []
+
+    all_results = pipeline.query_jobs(only_active=False, limit=50)
+    assert len(all_results) == 1
+    assert all_results[0]["is_active"] is False

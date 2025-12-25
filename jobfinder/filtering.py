@@ -151,11 +151,14 @@ def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[D
                 else:
                     if bool(r.get("remote")): continue
 
-        # City filter
+        # City filter: prefer matching city; allow "remote" with no city info to pass.
         if cities:
             locn = normalize(str(r.get("location") or ""))
             wm = ((r.get("extra") or {}).get("work_mode") or "").lower()
-            if wm != "remote" and not any(c in locn for c in cities):
+            is_remoteish = wm == "remote" or "remote" in locn
+            if is_remoteish and (not locn or locn == "remote"):
+                pass
+            elif not any(c in locn for c in cities):
                 continue
 
         if min_score is not None and (r.get("score") or 0) < int(min_score): continue
@@ -167,4 +170,19 @@ def apply_filters(rows: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[D
                 if age > int(max_age_days): continue
 
         out.append(r)
+    return out
+
+def filter_by_title_keywords(rows: List[Dict[str, Any]], keywords: List[str]) -> List[Dict[str, Any]]:
+    """
+    Lightweight title filter used by the API/UI to avoid client-side filtering loops.
+    Matches if any keyword substring is present (case-insensitive).
+    """
+    needles = [normalize(k) for k in (keywords or []) if k]
+    if not needles:
+        return rows
+    out = []
+    for r in rows:
+        title = normalize(str(r.get("title") or ""))
+        if any(n in title for n in needles):
+            out.append(r)
     return out

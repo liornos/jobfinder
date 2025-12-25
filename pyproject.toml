@@ -18,9 +18,11 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "flask>=3.0.0",
     "requests>=2.32.0",
+    "SQLAlchemy>=2.0.29",
 ]
 [project.optional-dependencies]
 extras = ["rapidfuzz>=3.9.1"]
+pg = ["psycopg[binary]>=3.2"]
 [project.scripts]
 jobfinder = "jobfinder.cli:app"
 jobfinder-api = "jobfinder.api:main"

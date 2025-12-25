@@ -9,12 +9,17 @@ import logging
 import os
 import ssl
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
-from concurrent.futures import ThreadPoolExecutor
 
-from .filtering import apply_filters, score
+from sqlalchemy import select
+
+from . import db, filtering
+from .filtering import apply_filters
+from .models import Job as JobModel
 
 log = logging.getLogger(__name__)
 
@@ -157,6 +162,36 @@ def _dedupe(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         out.append(j)
     return out
 
+def _compute_score(job: Dict[str, Any], keywords: List[str], cities: List[str]) -> Tuple[int, str]:
+    """
+    Compute score and reasons using filtering.score (expects a Job dataclass).
+    """
+    try:
+        created_at = filtering._parse_created_at(job.get("created_at"))  # type: ignore[attr-defined]
+    except Exception:
+        created_at = None
+
+    job_obj = JobModel(
+        id=str(job.get("id") or job.get("url") or ""),
+        title=job.get("title") or "",
+        company=job.get("company") or "",
+        url=job.get("url") or "",
+        location=job.get("location"),
+        remote=job.get("remote"),
+        created_at=created_at,
+        provider=job.get("provider"),
+        extra=job.get("extra"),
+    )
+    try:
+        score_val, reasons = filtering.score(job_obj, keywords, cities)
+        reason_str = ", ".join(reasons or []) if isinstance(reasons, (list, tuple, set)) else str(reasons or "")
+        return int(score_val or 0), reason_str
+    except Exception:
+        try:
+            return int(job.get("score") or 0), str(job.get("reasons") or "")
+        except Exception:
+            return 0, ""
+
 # --------------- compat shim for filtering ----------------
 
 def _apply_filters_compat(
@@ -293,6 +328,126 @@ def discover(
             break
     return list(results.values())
 
+# ----------------- scan helpers -----------------
+
+def _load_fetchers(companies: List[Dict[str, Any]], prov_filter: Optional[str]) -> Dict[str, Any]:
+    """
+    Preload provider modules once per scan/refresh to avoid repeated imports.
+    """
+    fetchers: Dict[str, Any] = {}
+    for c in companies:
+        cprov = (str(c.get("provider") or "")).strip().lower()
+        if prov_filter and cprov != prov_filter:
+            continue
+        if cprov not in PROVIDERS:
+            continue
+        if cprov in fetchers:
+            continue
+        mod = _import_provider(cprov)
+        fetchers[cprov] = getattr(mod, "fetch_jobs", None) if mod else None
+    return fetchers
+
+
+def _process_company_jobs(
+    company: Dict[str, Any],
+    *,
+    fetchers: Dict[str, Any],
+    prov_filter: Optional[str],
+    cities: List[str],
+    keywords: List[str],
+    filter_by_cities: bool,
+    compute_scores: bool,
+) -> Tuple[Optional[Tuple[str, str]], List[Dict[str, Any]]]:
+    cprov = (str(company.get("provider") or "")).strip().lower()
+    if prov_filter and cprov != prov_filter:
+        return None, []
+    if cprov not in PROVIDERS:
+        log.warning("Unknown provider '%s' for company %s", cprov, company)
+        return None, []
+
+    org = (str(company.get("org") or company.get("name") or "")).strip()
+    if not org:
+        log.warning("Missing org/name for company %s", company)
+        return None, []
+
+    fetch = fetchers.get(cprov)
+    raw_jobs = _call_fetch(fetch, org) if callable(fetch) else []
+
+    company_jobs: List[Dict[str, Any]] = []
+    for rj in raw_jobs or []:
+        j = _normalize_job(company, cprov, rj)
+        if compute_scores:
+            score_val, reasons = _compute_score(j, keywords, cities)
+            j["score"] = score_val
+            if reasons:
+                j["reasons"] = reasons
+
+        if filter_by_cities and cities and not _city_match(j.get("location", ""), cities):
+            continue
+
+        company_jobs.append(j)
+    return (cprov, org), company_jobs
+
+
+def _collect_jobs(
+    *,
+    companies: List[Dict[str, Any]],
+    cities: Optional[List[Any]],
+    keywords: Optional[List[Any]],
+    provider: Optional[Any],
+    remote: str,
+    min_score: int,
+    max_age_days: Optional[int],
+    filter_by_cities: bool,
+    apply_filters_flag: bool,
+    compute_scores: bool,
+) -> Tuple[List[Dict[str, Any]], Dict[Tuple[str, str], List[Dict[str, Any]]]]:
+    companies = companies or []
+    cities_list = _as_str_list(cities)
+    keywords_list = _as_str_list(keywords)
+    prov_filter = (str(provider).strip().lower()) if (provider is not None and provider != "") else None
+
+    fetchers = _load_fetchers(companies, prov_filter)
+    per_company: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+
+    if companies:
+        max_workers = min(8, len(companies))
+
+        def runner(c: Dict[str, Any]) -> Tuple[Optional[Tuple[str, str]], List[Dict[str, Any]]]:
+            return _process_company_jobs(
+                c,
+                fetchers=fetchers,
+                prov_filter=prov_filter,
+                cities=cities_list,
+                keywords=keywords_list,
+                filter_by_cities=filter_by_cities,
+                compute_scores=compute_scores,
+            )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            for key, jobs in pool.map(runner, companies):
+                if key is None:
+                    continue
+                per_company[key] = jobs
+
+    flat_results: List[Dict[str, Any]] = []
+    for jobs in per_company.values():
+        flat_results.extend(jobs)
+
+    flat_results = _dedupe(flat_results)
+
+    if apply_filters_flag:
+        flat_results = _apply_filters_compat(
+            flat_results,
+            provider=prov_filter,
+            remote=remote,
+            min_score=int(min_score or 0),
+            max_age_days=max_age_days,
+            cities=cities_list,
+        )
+
+    return flat_results, per_company
+
 # ----------------- scan -----------------
 
 def scan(
@@ -310,73 +465,156 @@ def scan(
              os.getcwd(), provider, cities, len(companies or []))
     log.debug("sys.path[0..4]=%s", sys.path[:5])
 
-    companies = companies or []
-    cities = _as_str_list(cities or (geo or {}).get("cities"))
-    keywords = _as_str_list(keywords)
-    prov_filter = (str(provider).strip().lower()) if (provider is not None and provider != "") else None
-
-    # Preload provider fetch functions once; avoid repeated imports inside threads.
-    fetchers: Dict[str, Any] = {}
-    for c in companies:
-        cprov = (str(c.get("provider") or "")).strip().lower()
-        if prov_filter and cprov != prov_filter:
-            continue
-        if cprov not in PROVIDERS:
-            continue
-        if cprov in fetchers:
-            continue
-        mod = _import_provider(cprov)
-        fetchers[cprov] = getattr(mod, "fetch_jobs", None) if mod else None
-
-    def _process_company(c: Dict[str, Any]) -> List[Dict[str, Any]]:
-        cprov = (str(c.get("provider") or "")).strip().lower()
-        if prov_filter and cprov != prov_filter:
-            return []
-        if cprov not in PROVIDERS:
-            log.warning("Unknown provider '%s' for company %s", cprov, c)
-            return []
-
-        org = (str(c.get("org") or c.get("name") or "")).strip()
-        if not org:
-            log.warning("Missing org/name for company %s", c)
-            return []
-
-        fetch = fetchers.get(cprov)
-        raw_jobs = _call_fetch(fetch, org) if callable(fetch) else []
-
-        company_jobs: List[Dict[str, Any]] = []
-        for rj in raw_jobs or []:
-            j = _normalize_job(c, cprov, rj)
-            try:
-                j["score"] = j.get("score") or score(j, keywords)
-            except Exception:
-                j["score"] = int(j.get("score") or 0)
-
-            if cities and not _city_match(j.get("location", ""), cities):
-                continue
-
-            company_jobs.append(j)
-        return company_jobs
-
-    results: List[Dict[str, Any]] = []
-    if companies:
-        max_workers = min(8, len(companies))
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            for company_jobs in pool.map(_process_company, companies):
-                if company_jobs:
-                    results.extend(company_jobs)
-
-    results = _dedupe(results)
-
-    # Compat path for different filtering.apply_filters signatures
-    results = _apply_filters_compat(
-        results,
-        provider=prov_filter,
+    results, _ = _collect_jobs(
+        companies=companies,
+        cities=cities or (geo or {}).get("cities"),
+        keywords=keywords,
+        provider=provider,
         remote=remote,
-        min_score=int(min_score or 0),
+        min_score=min_score,
         max_age_days=max_age_days,
-        cities=cities,
+        filter_by_cities=True,
+        apply_filters_flag=True,
+        compute_scores=True,
     )
 
     log.info("scan() done | results=%d", len(results))
     return results
+
+# ----------------- refresh (DB ingest) -----------------
+
+def refresh(
+    *,
+    companies: List[Dict[str, Any]],
+    cities: Optional[List[Any]] = None,
+    keywords: Optional[List[Any]] = None,
+    provider: Optional[Any] = None,
+    db_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Fetch jobs from providers and persist them to the database.
+    """
+    db.init_db(db_url)
+    now = datetime.now(timezone.utc)
+
+    jobs, per_company = _collect_jobs(
+        companies=companies,
+        cities=cities,
+        keywords=keywords,
+        provider=provider,
+        remote="any",
+        min_score=0,
+        max_age_days=None,
+        filter_by_cities=False,  # store everything; filtering happens at query time
+        apply_filters_flag=False,
+        compute_scores=True,
+    )
+
+    refreshed = 0
+    marked_inactive = 0
+
+    with db.session_scope(db_url) as session:
+        for comp in companies or []:
+            try:
+                company_row = db.upsert_company(session, comp)
+            except ValueError:
+                log.warning("Skipping company without provider/org: %s", comp)
+                continue
+
+            key = (company_row.provider, company_row.org)
+            company_jobs = per_company.get(key, [])
+            seen_keys: List[str] = []
+            for job in company_jobs:
+                row = db.upsert_job(
+                    session,
+                    company=company_row,
+                    job_dict=job,
+                    seen_at=now,
+                    keywords=_as_str_list(keywords),
+                    cities=_as_str_list(cities),
+                )
+                seen_keys.append(row.job_key)
+                refreshed += 1
+
+            marked_inactive += db.mark_inactive(
+                session, provider=company_row.provider, org=company_row.org, seen_keys=seen_keys, seen_at=now
+            )
+
+    return {
+        "jobs_seen": len(jobs),
+        "jobs_written": refreshed,
+        "inactive_marked": marked_inactive,
+        "companies": len(companies or []),
+    }
+
+# ----------------- query (DB only) -----------------
+
+def query_jobs(
+    *,
+    provider: Optional[str] = None,
+    remote: str = "any",
+    min_score: int = 0,
+    max_age_days: Optional[int] = None,
+    cities: Optional[List[Any]] = None,
+    keywords: Optional[List[Any]] = None,
+    title_keywords: Optional[List[Any]] = None,
+    orgs: Optional[List[Any]] = None,
+    company_names: Optional[List[Any]] = None,
+    only_active: bool = True,
+    limit: int = 500,
+    offset: int = 0,
+    db_url: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Read jobs from the DB (no provider HTTP calls) and apply filters in-memory.
+    """
+    db.init_db(db_url)
+
+    cities_list = _as_str_list(cities)
+    keywords_list = _as_str_list(keywords)
+    title_kw_list = _as_str_list(title_keywords)
+    prov_filter = (str(provider).strip().lower()) if provider else None
+    org_set = {s.lower() for s in _as_str_list(orgs)} if orgs else set()
+    company_name_set = {s.lower() for s in _as_str_list(company_names)} if company_names else set()
+
+    with db.session_scope(db_url) as session:
+        stmt = select(db.Job).order_by(db.Job.created_at.desc(), db.Job.id.desc())
+        if only_active:
+            stmt = stmt.where(db.Job.is_active.is_(True))
+        if prov_filter:
+            stmt = stmt.where(db.Job.provider == prov_filter)
+        if org_set:
+            stmt = stmt.where(db.Job.org.in_(org_set))
+        if company_name_set:
+            stmt = stmt.where(db.Job.company_name.in_(company_name_set))
+        if offset:
+            stmt = stmt.offset(int(offset))
+        if limit:
+            stmt = stmt.limit(int(limit))
+        rows = session.scalars(stmt).all()
+
+    jobs = [db.job_to_dict(r) for r in rows]
+
+    # Recompute score at query-time so filters reflect the active keyword set.
+    for j in jobs:
+        score_val, reasons = _compute_score(j, keywords_list, cities_list)
+        j["score"] = score_val
+        if reasons:
+            j["reasons"] = reasons
+
+    jobs = _apply_filters_compat(
+        jobs,
+        provider=prov_filter,
+        remote=remote,
+        min_score=int(min_score or 0),
+        max_age_days=max_age_days,
+        cities=cities_list,
+    )
+
+    if title_kw_list and hasattr(filtering, "filter_by_title_keywords"):
+        try:
+            jobs = filtering.filter_by_title_keywords(jobs, title_kw_list)
+        except Exception:
+            pass
+
+    return jobs
