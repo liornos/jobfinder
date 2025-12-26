@@ -577,44 +577,64 @@ def query_jobs(
     org_set = {s.lower() for s in _as_str_list(orgs)} if orgs else set()
     company_name_set = {s.lower() for s in _as_str_list(company_names)} if company_names else set()
 
+    limit_val = int(limit or 0)
+    offset_val = max(0, int(offset or 0))
+    if limit_val <= 0:
+        return []
+
     with db.session_scope(db_url) as session:
-        stmt = select(db.Job).order_by(db.Job.created_at.desc(), db.Job.id.desc())
+        base_stmt = select(db.Job).order_by(db.Job.created_at.desc(), db.Job.id.desc())
         if only_active:
-            stmt = stmt.where(db.Job.is_active.is_(True))
+            base_stmt = base_stmt.where(db.Job.is_active.is_(True))
         if prov_filter:
-            stmt = stmt.where(db.Job.provider == prov_filter)
+            base_stmt = base_stmt.where(db.Job.provider == prov_filter)
         if org_set:
-            stmt = stmt.where(db.Job.org.in_(org_set))
+            base_stmt = base_stmt.where(db.Job.org.in_(org_set))
         if company_name_set:
-            stmt = stmt.where(db.Job.company_name.in_(company_name_set))
-        if offset:
-            stmt = stmt.offset(int(offset))
-        if limit:
-            stmt = stmt.limit(int(limit))
-        rows = session.scalars(stmt).all()
+            base_stmt = base_stmt.where(db.Job.company_name.in_(company_name_set))
 
-    jobs = [db.job_to_dict(r) for r in rows]
+        batch_size = max(limit_val * 2, 500)
+        filtered: List[Dict[str, Any]] = []
+        fetch_offset = 0
+        target = offset_val + limit_val
 
-    # Recompute score at query-time so filters reflect the active keyword set.
-    for j in jobs:
-        score_val, reasons = _compute_score(j, keywords_list, cities_list)
-        j["score"] = score_val
-        if reasons:
-            j["reasons"] = reasons
+        while True:
+            stmt = base_stmt.offset(fetch_offset).limit(batch_size)
+            rows = session.scalars(stmt).all()
+            if not rows:
+                break
 
-    jobs = _apply_filters_compat(
-        jobs,
-        provider=prov_filter,
-        remote=remote,
-        min_score=int(min_score or 0),
-        max_age_days=max_age_days,
-        cities=cities_list,
-    )
+            jobs_batch = [db.job_to_dict(r) for r in rows]
 
-    if title_kw_list and hasattr(filtering, "filter_by_title_keywords"):
-        try:
-            jobs = filtering.filter_by_title_keywords(jobs, title_kw_list)
-        except Exception:
-            pass
+            # Recompute score at query-time so filters reflect the active keyword set.
+            for j in jobs_batch:
+                score_val, reasons = _compute_score(j, keywords_list, cities_list)
+                j["score"] = score_val
+                if reasons:
+                    j["reasons"] = reasons
 
-    return jobs
+            jobs_batch = _apply_filters_compat(
+                jobs_batch,
+                provider=prov_filter,
+                remote=remote,
+                min_score=int(min_score or 0),
+                max_age_days=max_age_days,
+                cities=cities_list,
+            )
+
+            if title_kw_list and hasattr(filtering, "filter_by_title_keywords"):
+                try:
+                    jobs_batch = filtering.filter_by_title_keywords(jobs_batch, title_kw_list)
+                except Exception:
+                    pass
+
+            filtered.extend(jobs_batch)
+            if len(filtered) >= target:
+                break
+
+            if len(rows) < batch_size:
+                break
+
+            fetch_offset += batch_size
+
+    return filtered[offset_val : offset_val + limit_val]
