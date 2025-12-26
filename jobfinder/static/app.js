@@ -291,7 +291,7 @@
 
       if (!Array.isArray(list) || !list.length) {
         setDiscoverMsg("Seed file empty or invalid", "error");
-        return;
+        return [];
       }
 
       let filtered = list;
@@ -307,9 +307,11 @@
       renderCompanies();
       showPanelsAfterDiscover();
       setDiscoverMsg(reasonText || `Loaded ${state.companies.length} seed companies`, "ok");
+      return state.companies;
     } catch (e) {
       err("Seed load error", e);
       setDiscoverMsg("Failed to load seed companies", "error");
+      return [];
     }
   }
 
@@ -597,6 +599,41 @@
     });
   }
 
+  function extractCities(companies) {
+    return Array.from(new Set((companies || []).map(c => (c.city || "").trim()).filter(Boolean)));
+  }
+
+  function setCitiesInput(cities) {
+    if (!cities?.length) return;
+    const input = qs("#cities");
+    if (!input) return;
+    input.value = cities.join(", ");
+  }
+
+  function selectAllCompanies() {
+    const selectAll = qs("#selectAll");
+    qsa(".rowSel").forEach(cb => cb.checked = true);
+    if (selectAll) selectAll.checked = true;
+  }
+
+  async function autoRefreshOnStartup() {
+    try {
+      const companies = await loadSeedCompanies("Auto-loaded seed companies for startup refresh");
+      if (!Array.isArray(companies) || !companies.length) {
+        debug("Auto refresh skipped: no seed companies found");
+        return;
+      }
+
+      setCitiesInput(extractCities(companies));
+      selectAllCompanies();
+      setScanMsg("Auto refreshing all seed companies...", "info");
+      await refreshSelected({ silent: true });
+    } catch (e) {
+      err("Auto refresh on startup failed", e);
+      setScanMsg("Auto refresh on startup failed", "error");
+    }
+  }
+
   function init() {
     if (state.initialized) return;
     state.initialized = true;
@@ -623,6 +660,7 @@
 
     // Load any existing jobs already in the DB so filters/pagination stay fast
     loadJobsFromDB({ silent: true });
+    autoRefreshOnStartup();
   }
 
   document.addEventListener("DOMContentLoaded", init);
