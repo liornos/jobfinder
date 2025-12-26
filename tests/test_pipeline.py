@@ -173,3 +173,27 @@ def test_refresh_and_query_jobs(monkeypatch, provider_stub, tmp_path):
     all_results = pipeline.query_jobs(only_active=False, limit=50)
     assert len(all_results) == 1
     assert all_results[0]["is_active"] is False
+
+
+def test_query_jobs_applies_filters_before_limit(monkeypatch, provider_stub, temp_db_url):
+    provider_stub(
+        {
+            "greenhouse": {
+                "acme": [
+                    {"id": "10", "title": "Platform Engineer", "location": "Haifa", "url": "https://example.com/10", "created_at": "2025-01-10T00:00:00Z"},
+                    {"id": "09", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/9", "created_at": "2025-01-09T00:00:00Z"},
+                    {"id": "08", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/8", "created_at": "2025-01-08T00:00:00Z"},
+                    {"id": "07", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/7", "created_at": "2025-01-07T00:00:00Z"},
+                    {"id": "06", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/6", "created_at": "2025-01-06T00:00:00Z"},
+                    {"id": "05", "title": "Tel Aviv Engineer", "location": "Tel Aviv", "url": "https://example.com/5", "created_at": "2025-01-05T00:00:00Z"},
+                    {"id": "04", "title": "Tel Aviv Engineer", "location": "Tel Aviv", "url": "https://example.com/4", "created_at": "2025-01-04T00:00:00Z"},
+                ]
+            }
+        }
+    )
+
+    companies = [{"name": "Acme", "org": "acme", "provider": "greenhouse"}]
+    pipeline.refresh(companies=companies, cities=[], keywords=["engineer"])
+
+    results = pipeline.query_jobs(cities=["Tel Aviv"], keywords=["engineer"], limit=2)
+    assert [r["id"] for r in results] == ["05", "04"]
