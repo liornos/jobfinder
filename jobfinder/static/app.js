@@ -61,7 +61,7 @@
     else msg.classList.add("text-gray-800");
   }
 
-  function setScanLoading(isLoading, text = "Scanning...") {
+  function setScanLoading(isLoading, text = "Refreshing...") {
     const btn = qs("#btnScanSelected");
     const txt = qs("#scanBtnText");
     const spn = qs("#scanSpinner");
@@ -78,7 +78,7 @@
       btn.disabled = false;
       btn.removeAttribute("aria-busy");
       btn.classList.remove("opacity-70", "cursor-not-allowed");
-      if (txt) txt.textContent = "Scan jobs";
+      if (txt) txt.textContent = "Refresh jobs";
       if (spn) spn.classList.add("hidden");
       setScanMsg("", "info");
     }
@@ -139,6 +139,14 @@
 
     const selectAll = qs("#selectAll");
     if (selectAll) selectAll.checked = false;
+
+    // Re-filter jobs when company selection changes
+    body.querySelectorAll(".rowSel").forEach(cb => {
+      cb.addEventListener("change", () => {
+        state.page = 1;
+        loadJobsFromDB({ silent: true });
+      });
+    });
   }
 
   function badgeWorkMode(job) {
@@ -312,6 +320,68 @@
       .filter(Boolean);
   }
 
+  function buildJobsQuery(limitOverride) {
+    const params = new URLSearchParams();
+    const cities = parseListInput("#cities");
+    const keywords = parseListInput("#keywords");
+
+    if (cities.length) params.set("cities", cities.join(","));
+    if (keywords.length) params.set("keywords", keywords.join(","));
+
+    const provider = qs("#fltProvider")?.value || "";
+    const remote = qs("#fltRemote")?.value || "any";
+    const minScore = parseInt(qs("#fltScore")?.value || "0", 10) || 0;
+    const maxAge = qs("#fltAge")?.value;
+
+    if (provider) params.set("provider", provider);
+    if (remote) params.set("remote", remote);
+    if (minScore) params.set("min_score", String(minScore));
+    if (maxAge) params.set("max_age_days", maxAge);
+
+    const selected = selectedCompanies();
+    if (selected.length) {
+      params.set("orgs", selected.map(c => c.org || c.name || "").filter(Boolean).join(","));
+    }
+
+    const limit = limitOverride || 500;
+    params.set("limit", String(limit));
+
+    return params;
+  }
+
+  async function loadJobsFromDB({ afterRefresh = false, silent = false } = {}) {
+    const params = buildJobsQuery();
+    const url = `/jobs?${params.toString()}`;
+
+    try {
+      const { ok, data } = await fetchJSON(url);
+      if (!ok) {
+        const msg = (data && data.error) ? String(data.error) : "Failed to load jobs";
+        setScanMsg(msg, "error");
+        return;
+      }
+
+      state.jobs = data?.results || [];
+      const curIds = new Set(state.jobs.map(j => j?.id).filter(Boolean));
+      const prev = new Set(loadLocal("lastScanIds", []));
+      state.lastScanIds = prev;
+
+      if (afterRefresh) {
+        state.newIds = new Set([...curIds].filter(x => !prev.has(x)));
+        saveLocal("lastScanIds", [...curIds]);
+      } else {
+        state.newIds = new Set([...curIds].filter(x => !prev.has(x)));
+      }
+
+      state.page = 1;
+      renderJobs();
+      if (!silent) setScanMsg(`Loaded ${state.jobs.length} jobs`, "ok");
+    } catch (e) {
+      err("Jobs fetch error", e);
+      if (!silent) setScanMsg("Failed to load jobs", "error");
+    }
+  }
+
   async function discover() {
     setDiscoverMsg("Discovering...", "info");
     log("Discover clicked");
@@ -382,9 +452,9 @@
       .filter(Boolean);
   }
 
-  async function scanSelected({ silent = false } = {}) {
+  async function refreshSelected({ silent = false } = {}) {
     if (state.scanInFlight) {
-      debug("scan: already running, skipping");
+      debug("refresh: already running, skipping");
       return;
     }
 
@@ -396,23 +466,17 @@
 
     const cities = parseListInput("#cities");
     const keywords = parseListInput("#keywords");
-    const radius_km = parseFloat(qs("#radius")?.value || "0") || 0;
 
     const body = {
       cities,
       keywords,
       companies: selected,
-      geo: radius_km > 0 ? { cities, radius_km } : undefined,
       provider: (qs("#fltProvider")?.value || undefined),
-      remote: qs("#fltRemote")?.value || "any",
-      min_score: parseInt(qs("#fltScore")?.value || "0", 10) || 0,
-      max_age_days: (qs("#fltAge")?.value ? (parseInt(qs("#fltAge").value, 10) || undefined) : undefined),
     };
 
     try { state.scanAbort?.abort?.(); } catch {}
     state.scanAbort = new AbortController();
     let timedOut = false;
-    // Allow longer scans; backend can take >30s for many companies/providers
     const timeoutMs = 120000;
     const timeoutId = setTimeout(() => {
       timedOut = true;
@@ -420,34 +484,29 @@
     }, timeoutMs);
 
     state.scanInFlight = true;
-    setScanLoading(true);
+    setScanLoading(true, "Refreshing jobs...");
 
     try {
-      const { ok, data } = await fetchJSON("/scan", { method: "POST", body, signal: state.scanAbort.signal });
+      const { ok, data } = await fetchJSON("/refresh", { method: "POST", body, signal: state.scanAbort.signal });
       if (!ok) {
-        const msg = (data && data.error) ? String(data.error) : "Scan failed";
+        const msg = (data && data.error) ? String(data.error) : "Refresh failed";
         setScanMsg(msg, "error");
         return;
       }
 
-      const prev = new Set(loadLocal("lastScanIds", []));
-      state.lastScanIds = prev;
-
-      state.jobs = data.results || [];
-      const curIds = new Set(state.jobs.map(j => j?.id).filter(Boolean));
-      state.newIds = new Set([...curIds].filter(x => !prev.has(x)));
-      saveLocal("lastScanIds", [...curIds]);
-
-      state.page = 1;
-      renderJobs();
-      setScanMsg(`Loaded ${state.jobs.length} jobs (${state.newIds.size} new)`, "ok");
+      const summary = data?.summary || {};
+      await loadJobsFromDB({ afterRefresh: true, silent: true });
+      setScanMsg(
+        `Refreshed ${summary.jobs_written ?? state.jobs.length} jobs (${state.newIds.size} new)`,
+        "ok"
+      );
     } catch (e) {
       if (e?.name === "AbortError") {
-        if (timedOut) setScanMsg("Scan timed out, please try again or narrow selection", "error");
+        if (timedOut) setScanMsg("Refresh timed out, please try again or narrow selection", "error");
         return;
       }
-      err("Scan error", e);
-      setScanMsg("Scan failed (network error)", "error");
+      err("Refresh error", e);
+      setScanMsg("Refresh failed (network error)", "error");
     } finally {
       clearTimeout(timeoutId);
       state.scanInFlight = false;
@@ -510,7 +569,7 @@
       }
       if (chk && sel && chk.checked) {
         const seconds = parseInt(sel.value, 10) || 30;
-        state.autoRefreshTimer = setInterval(() => scanSelected({ silent: true }), seconds * 1000);
+        state.autoRefreshTimer = setInterval(() => refreshSelected({ silent: true }), seconds * 1000);
       }
     };
     chk?.addEventListener("change", update);
@@ -529,7 +588,11 @@
     ["#fltProvider", "#fltRemote", "#fltScore", "#fltAge", "#fltSalary", "#onlyNew"].forEach(id => {
       qs(id)?.addEventListener("change", () => {
         state.page = 1;
-        renderJobs();
+        if (id === "#onlyNew") {
+          renderJobs();
+        } else {
+          loadJobsFromDB({ silent: true });
+        }
       });
     });
   }
@@ -548,13 +611,18 @@
     setupFilters();
 
     qs("#btnDiscover")?.addEventListener("click", discover);
-    qs("#btnScanSelected")?.addEventListener("click", () => scanSelected({ silent: false }));
+    qs("#btnScanSelected")?.addEventListener("click", () => refreshSelected({ silent: false }));
     qs("#btnClear")?.addEventListener("click", clearAll);
 
     qs("#selectAll")?.addEventListener("change", (e) => {
       const checked = !!e.target.checked;
       qsa(".rowSel").forEach(cb => cb.checked = checked);
+      state.page = 1;
+      loadJobsFromDB({ silent: true });
     });
+
+    // Load any existing jobs already in the DB so filters/pagination stay fast
+    loadJobsFromDB({ silent: true });
   }
 
   document.addEventListener("DOMContentLoaded", init);

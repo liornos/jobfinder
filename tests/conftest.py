@@ -57,3 +57,13 @@ def provider_stub(monkeypatch):
         return fake_import
 
     return _stub
+
+
+@pytest.fixture
+def temp_db_url(tmp_path, monkeypatch):
+    """
+    Provide an isolated SQLite DB for each test run.
+    """
+    path = tmp_path / "jobs.db"
+    monkeypatch.setenv("JOBFINDER_DATABASE_URL", f"sqlite:///{path.as_posix()}")
+    return path
