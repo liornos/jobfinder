@@ -101,7 +101,7 @@
 
   const CITY_ALIASES = {
     // Normalize Ra'anana variants and nearby spellings that often appear in postings.
-    "raanana": ["raanana", "ra'anana", "raananna", "ra anana", "ra-anana", "kfar saba", "kefar saba", "herzliya"],
+    "raanana": ["raanana", "ra'anana"],
   };
 
   function expandCities(list) {
