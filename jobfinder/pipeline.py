@@ -24,7 +24,19 @@ from .models import Job as JobModel
 log = logging.getLogger(__name__)
 
 # Supported provider names used by scan()
-PROVIDERS: Tuple[str, ...] = ("greenhouse", "lever", "ashby", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims")
+PROVIDERS: Tuple[str, ...] = (
+    "greenhouse",
+    "lever",
+    "ashby",
+    "smartrecruiters",
+    "breezy",
+    "comeet",
+    "workday",
+    "recruitee",
+    "jobvite",
+    "icims",
+    "workable",
+)
 
 # Hostnames per provider used by discover()
 _PROVIDER_HOST = {
@@ -38,6 +50,12 @@ _PROVIDER_HOST = {
     "recruitee": "recruitee.com",
     "jobvite": "jobvite.com",
     "icims": "icims.com",
+    "workable": "apply.workable.com",
+}
+
+_CITY_ALIASES = {
+    # Normalize Ra'anana variations and nearby spellings that often appear in postings.
+    "raanana": ["raanana", "ra'anana", "raananna", "ra-anana", "ra anana", "kfar saba", "kefar saba", "herzliya"],
 }
 
 # ----------------- utils -----------------
@@ -55,6 +73,28 @@ def _as_str_list(seq) -> List[str]:
         if s:
             out.append(s)
     return out
+
+def _expand_city_aliases(cities: List[str]) -> List[str]:
+    """
+    Expand known city variations (e.g., Ra'anana spellings/nearby areas) while keeping order.
+    """
+    seen = set()
+    expanded: List[str] = []
+    for c in cities or []:
+        base = (c or "").strip()
+        if not base:
+            continue
+        variants = [base, *_CITY_ALIASES.get(base.lower(), [])]
+        for v in variants:
+            v_norm = (v or "").strip()
+            if not v_norm:
+                continue
+            key = v_norm.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            expanded.append(v_norm)
+    return expanded
 
 def _http_get_json(url: str, params: Optional[Dict[str, Any]] = None, timeout: float = 25.0) -> Any:
     # why: no external deps
@@ -292,13 +332,14 @@ def discover(
         raise RuntimeError("MISSING API KEY")
     if not sources:
         sources = list(_PROVIDER_HOST.keys())
+    cities_expanded = _expand_city_aliases(_as_str_list(cities))
     q_keywords = " ".join([k for k in (keywords or []) if _norm(k)]) if keywords else ""
     results: Dict[Tuple[str, str], Dict[str, Any]] = {}
     for provider in sources:
         host = _PROVIDER_HOST.get(provider)
         if not host:
             continue
-        for city in (cities or [""]):
+        for city in (cities_expanded or [""]):
             q = f'site:{host} "{city}" {q_keywords}'.strip()
             params = {"engine": "google", "q": q, "num": 10, "hl": "en", "api_key": api_key}
             data = _http_get_json("https://serpapi.com/search.json", params=params)
@@ -403,7 +444,7 @@ def _collect_jobs(
     compute_scores: bool,
 ) -> Tuple[List[Dict[str, Any]], Dict[Tuple[str, str], List[Dict[str, Any]]]]:
     companies = companies or []
-    cities_list = _as_str_list(cities)
+    cities_list = _expand_city_aliases(_as_str_list(cities))
     keywords_list = _as_str_list(keywords)
     prov_filter = (str(provider).strip().lower()) if (provider is not None and provider != "") else None
 
@@ -531,7 +572,7 @@ def refresh(
                     job_dict=job,
                     seen_at=now,
                     keywords=_as_str_list(keywords),
-                    cities=_as_str_list(cities),
+                    cities=_expand_city_aliases(_as_str_list(cities)),
                 )
                 seen_keys.append(row.job_key)
                 refreshed += 1
@@ -570,7 +611,7 @@ def query_jobs(
     """
     db.init_db(db_url)
 
-    cities_list = _as_str_list(cities)
+    cities_list = _expand_city_aliases(_as_str_list(cities))
     keywords_list = _as_str_list(keywords)
     title_kw_list = _as_str_list(title_keywords)
     prov_filter = (str(provider).strip().lower()) if provider else None

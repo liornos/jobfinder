@@ -99,6 +99,30 @@
     autoRefreshTimer: null,
   };
 
+  const CITY_ALIASES = {
+    // Normalize Ra'anana variants and nearby spellings that often appear in postings.
+    "raanana": ["raanana", "ra'anana", "raananna", "ra anana", "ra-anana", "kfar saba", "kefar saba", "herzliya"],
+  };
+
+  function expandCities(list) {
+    const seen = new Set();
+    const out = [];
+    (list || []).forEach((raw) => {
+      const base = (raw || "").trim();
+      if (!base) return;
+      const variants = [base, ...(CITY_ALIASES[base.toLowerCase()] || [])];
+      variants.forEach((v) => {
+        const norm = (v || "").trim();
+        if (!norm) return;
+        const key = norm.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(norm);
+      });
+    });
+    return out;
+  }
+
   async function fetchJSON(path, { method = "GET", body = undefined, signal = undefined } = {}) {
     const rid = uid();
     const t0 = performance.now();
@@ -296,7 +320,7 @@
 
       let filtered = list;
       if (cities && cities.length > 0) {
-        const normalizedCities = cities.map(c => c.trim().toLowerCase()).filter(Boolean);
+        const normalizedCities = expandCities(cities).map(c => c.trim().toLowerCase()).filter(Boolean);
         filtered = list.filter(c => {
           const companyCity = (c.city || "").toLowerCase();
           return normalizedCities.some(city => companyCity.includes(city));
@@ -324,7 +348,7 @@
 
   function buildJobsQuery(limitOverride) {
     const params = new URLSearchParams();
-    const cities = parseListInput("#cities");
+    const cities = expandCities(parseListInput("#cities"));
     const keywords = parseListInput("#keywords");
 
     if (cities.length) params.set("cities", cities.join(","));
@@ -388,11 +412,11 @@
     setDiscoverMsg("Discovering...", "info");
     log("Discover clicked");
 
-    const cities = parseListInput("#cities");
+    const cities = expandCities(parseListInput("#cities"));
     const keywords = parseListInput("#keywords");
 
     // Keep aligned with backend pipeline._PROVIDER_HOST
-    const DEFAULT_SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims"];
+    const DEFAULT_SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims", "workable"];
     const sourcesEl = qs("#sources");
 
     let sources =

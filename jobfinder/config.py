@@ -41,7 +41,19 @@ def load_config(path: Optional[str] = None) -> AppConfig:
     # Defaults if not provided by user config:
     cities = defaults.get("cities") or ["Tel Aviv", "herzliya"]
     keywords = defaults.get("keywords") or ["software"]
-    sources = discovery.get("sources") or ["greenhouse", "lever", "ashby", "smartrecruiters"]
+    sources = discovery.get("sources") or [
+        "greenhouse",
+        "lever",
+        "ashby",
+        "smartrecruiters",
+        "comeet",
+        "workable",
+        "breezy",
+        "workday",
+        "recruitee",
+        "jobvite",
+        "icims",
+    ]
     limit = int(discovery.get("limit", 50))
 
     return AppConfig(
