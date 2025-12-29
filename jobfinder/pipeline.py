@@ -183,12 +183,23 @@ def _call_fetch(fetch_fn, org: str) -> List[Dict[str, Any]]:
 
 
 def _infer_work_mode(title: str, location: str, remote_flag: Optional[bool]) -> str:
-    t, l = title.lower(), location.lower()
-    if "hybrid" in t or "hybrid" in l:
+    title_lower = title.lower()
+    location_lower = location.lower()
+    if "hybrid" in title_lower or "hybrid" in location_lower:
         return "hybrid"
-    if remote_flag is True or "remote" in t or "remote" in l or "work from home" in l:
+    if (
+        remote_flag is True
+        or "remote" in title_lower
+        or "remote" in location_lower
+        or "work from home" in location_lower
+    ):
         return "remote"
-    if "onsite" in t or "on-site" in t or "onsite" in l or "on-site" in l:
+    if (
+        "onsite" in title_lower
+        or "on-site" in title_lower
+        or "onsite" in location_lower
+        or "on-site" in location_lower
+    ):
         return "onsite"
     return ""
 

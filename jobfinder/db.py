@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from sqlalchemy import (
     JSON,
     Boolean,
-    Column,
     DateTime,
     ForeignKey,
     Integer,

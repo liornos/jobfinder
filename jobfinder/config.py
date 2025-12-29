@@ -1,5 +1,7 @@
 from __future__ import annotations
-import os, yaml
+
+import os
+import yaml
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Dict, Any

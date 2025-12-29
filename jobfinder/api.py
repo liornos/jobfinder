@@ -1,6 +1,10 @@
 # file: jobfinder/api.py
 from __future__ import annotations
-import argparse, json, logging, os
+
+import argparse
+import json
+import logging
+import os
 from typing import Any, Dict, List
 
 from flask import Blueprint, Flask, jsonify, render_template, request

@@ -1,6 +1,6 @@
 # file: jobfinder/providers/greenhouse.py
 from __future__ import annotations
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
 
 from ._http import get_json
 

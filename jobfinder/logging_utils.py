@@ -1,6 +1,9 @@
 # file: jobfinder/logging_utils.py
 from __future__ import annotations
-import logging, os, sys
+
+import logging
+import os
+import sys
 
 
 def setup_logging(default_level: str | None = None) -> None:
