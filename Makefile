@@ -1,4 +1,4 @@
-.PHONY: venv install lint format test test-cov
+.PHONY: venv install lint format type test test-cov
 
 VENV ?= .venv
 PY ?= py
@@ -18,6 +18,9 @@ lint: $(VENV_PY)
 
 format: $(VENV_PY)
 	$(VENV_PY) -m ruff format .
+
+type: $(VENV_PY)
+	$(VENV_PY) -m mypy jobfinder tests
 
 test: $(VENV_PY)
 	$(VENV_PY) -m pytest -q
