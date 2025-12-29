@@ -16,7 +16,9 @@ def test_discover_builds_unique_companies(monkeypatch, serpapi_env, serpapi_stub
                 {"link": "https://boards.greenhouse.io/umbrella/jobs/456"},
             ]
         },
-        "jobs.lever.co": {"organic_results": [{"link": "https://jobs.lever.co/contoso/789"}]},
+        "jobs.lever.co": {
+            "organic_results": [{"link": "https://jobs.lever.co/contoso/789"}]
+        },
     }
     serpapi_stub(payloads)
 
@@ -48,7 +50,9 @@ def test_discover_stops_after_limit(monkeypatch, serpapi_env):
 
     monkeypatch.setattr(pipeline, "_http_get_json", fake_http)
 
-    companies = pipeline.discover(cities=["NYC"], keywords=["dev"], sources=["greenhouse"], limit=1)
+    companies = pipeline.discover(
+        cities=["NYC"], keywords=["dev"], sources=["greenhouse"], limit=1
+    )
 
     assert len(companies) == 1
     assert len(calls) == 1  # additional provider/city loops short-circuit after limit
@@ -112,8 +116,26 @@ def test_scan_normalizes_and_dedupes(monkeypatch, provider_stub):
 
 def test_scan_respects_provider_filter(monkeypatch, provider_stub):
     jobs_by_provider = {
-        "greenhouse": {"acme": [{"id": "gh-1", "title": "GH Role", "location": "Remote", "url": "https://gh/1"}]},
-        "lever": {"contoso": [{"id": "lv-1", "title": "Lever Role", "location": "Remote", "url": "https://lv/1"}]},
+        "greenhouse": {
+            "acme": [
+                {
+                    "id": "gh-1",
+                    "title": "GH Role",
+                    "location": "Remote",
+                    "url": "https://gh/1",
+                }
+            ]
+        },
+        "lever": {
+            "contoso": [
+                {
+                    "id": "lv-1",
+                    "title": "Lever Role",
+                    "location": "Remote",
+                    "url": "https://lv/1",
+                }
+            ]
+        },
     }
     provider_stub(jobs_by_provider)
 
@@ -156,10 +178,14 @@ def test_refresh_and_query_jobs(monkeypatch, provider_stub, tmp_path):
     )
 
     companies = [{"name": "Acme", "org": "acme", "provider": "greenhouse"}]
-    summary = pipeline.refresh(companies=companies, cities=["New York"], keywords=["engineer"])
+    summary = pipeline.refresh(
+        companies=companies, cities=["New York"], keywords=["engineer"]
+    )
     assert summary["jobs_written"] == 1
 
-    results = pipeline.query_jobs(cities=["New York"], keywords=["engineer"], only_active=True, limit=50)
+    results = pipeline.query_jobs(
+        cities=["New York"], keywords=["engineer"], only_active=True, limit=50
+    )
     assert len(results) == 1
     assert results[0]["id"] == "1"
 
@@ -175,18 +201,62 @@ def test_refresh_and_query_jobs(monkeypatch, provider_stub, tmp_path):
     assert all_results[0]["is_active"] is False
 
 
-def test_query_jobs_applies_filters_before_limit(monkeypatch, provider_stub, temp_db_url):
+def test_query_jobs_applies_filters_before_limit(
+    monkeypatch, provider_stub, temp_db_url
+):
     provider_stub(
         {
             "greenhouse": {
                 "acme": [
-                    {"id": "10", "title": "Platform Engineer", "location": "Haifa", "url": "https://example.com/10", "created_at": "2025-01-10T00:00:00Z"},
-                    {"id": "09", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/9", "created_at": "2025-01-09T00:00:00Z"},
-                    {"id": "08", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/8", "created_at": "2025-01-08T00:00:00Z"},
-                    {"id": "07", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/7", "created_at": "2025-01-07T00:00:00Z"},
-                    {"id": "06", "title": "Backend Engineer", "location": "Haifa", "url": "https://example.com/6", "created_at": "2025-01-06T00:00:00Z"},
-                    {"id": "05", "title": "Tel Aviv Engineer", "location": "Tel Aviv", "url": "https://example.com/5", "created_at": "2025-01-05T00:00:00Z"},
-                    {"id": "04", "title": "Tel Aviv Engineer", "location": "Tel Aviv", "url": "https://example.com/4", "created_at": "2025-01-04T00:00:00Z"},
+                    {
+                        "id": "10",
+                        "title": "Platform Engineer",
+                        "location": "Haifa",
+                        "url": "https://example.com/10",
+                        "created_at": "2025-01-10T00:00:00Z",
+                    },
+                    {
+                        "id": "09",
+                        "title": "Backend Engineer",
+                        "location": "Haifa",
+                        "url": "https://example.com/9",
+                        "created_at": "2025-01-09T00:00:00Z",
+                    },
+                    {
+                        "id": "08",
+                        "title": "Backend Engineer",
+                        "location": "Haifa",
+                        "url": "https://example.com/8",
+                        "created_at": "2025-01-08T00:00:00Z",
+                    },
+                    {
+                        "id": "07",
+                        "title": "Backend Engineer",
+                        "location": "Haifa",
+                        "url": "https://example.com/7",
+                        "created_at": "2025-01-07T00:00:00Z",
+                    },
+                    {
+                        "id": "06",
+                        "title": "Backend Engineer",
+                        "location": "Haifa",
+                        "url": "https://example.com/6",
+                        "created_at": "2025-01-06T00:00:00Z",
+                    },
+                    {
+                        "id": "05",
+                        "title": "Tel Aviv Engineer",
+                        "location": "Tel Aviv",
+                        "url": "https://example.com/5",
+                        "created_at": "2025-01-05T00:00:00Z",
+                    },
+                    {
+                        "id": "04",
+                        "title": "Tel Aviv Engineer",
+                        "location": "Tel Aviv",
+                        "url": "https://example.com/4",
+                        "created_at": "2025-01-04T00:00:00Z",
+                    },
                 ]
             }
         }

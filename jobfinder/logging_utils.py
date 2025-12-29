@@ -2,6 +2,7 @@
 from __future__ import annotations
 import logging, os, sys
 
+
 def setup_logging(default_level: str | None = None) -> None:
     """
     Console logging. Controlled by env LOG_LEVEL (DEBUG/INFO/WARN/ERROR).
@@ -13,8 +14,10 @@ def setup_logging(default_level: str | None = None) -> None:
     # Avoid duplicate handlers on reload
     if not root.handlers:
         h = logging.StreamHandler(stream=sys.stdout)
-        fmt = logging.Formatter(fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-                                datefmt="%H:%M:%S")
+        fmt = logging.Formatter(
+            fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            datefmt="%H:%M:%S",
+        )
         h.setFormatter(fmt)
         root.addHandler(h)
     root.setLevel(level)

@@ -12,7 +12,9 @@ from .emailer_gmail import send_email_gmail
 from .state import AlertState
 
 
-def _group_by_provider(companies: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+def _group_by_provider(
+    companies: List[Dict[str, Any]],
+) -> Dict[str, List[Dict[str, Any]]]:
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for c in companies or []:
         prov = (c.get("provider") or "").strip().lower()
@@ -46,7 +48,12 @@ def scan(
     timeout: float = 90.0,
 ) -> List[Dict[str, Any]]:
     url = base_url.rstrip("/") + "/scan"
-    payload = {"cities": cities, "keywords": keywords, "top": top, "companies": companies}
+    payload = {
+        "cities": cities,
+        "keywords": keywords,
+        "top": top,
+        "companies": companies,
+    }
     if provider:
         payload["provider"] = provider
     with httpx.Client(timeout=httpx.Timeout(timeout)) as client:
@@ -69,8 +76,16 @@ def render_text(new_jobs: List[Dict[str, Any]]) -> str:
 
 def run_once() -> int:
     base_url = os.environ["ALERT_BASE_URL"]  # your Render web-service URL
-    cities = [c.strip() for c in os.environ.get("ALERT_CITIES", "Tel Aviv").split(",") if c.strip()]
-    keywords = [k.strip() for k in os.environ.get("ALERT_KEYWORDS", "automation").split(",") if k.strip()]
+    cities = [
+        c.strip()
+        for c in os.environ.get("ALERT_CITIES", "Tel Aviv").split(",")
+        if c.strip()
+    ]
+    keywords = [
+        k.strip()
+        for k in os.environ.get("ALERT_KEYWORDS", "automation").split(",")
+        if k.strip()
+    ]
     top = int(os.environ.get("ALERT_TOP", "300"))
     http_timeout = float(os.environ.get("ALERT_HTTP_TIMEOUT", "120"))
 
@@ -114,7 +129,14 @@ def run_once() -> int:
                 )
             )
     else:
-        jobs = scan(base_url, cities=cities, keywords=keywords, companies=companies, top=top, timeout=http_timeout)
+        jobs = scan(
+            base_url,
+            cities=cities,
+            keywords=keywords,
+            companies=companies,
+            top=top,
+            timeout=http_timeout,
+        )
 
     jobs = _dedupe_jobs(jobs)
 
@@ -126,7 +148,11 @@ def run_once() -> int:
     state = AlertState(state_db)
 
     seen = state.already_seen(ids)
-    new_jobs = [j for j in jobs if (j.get("id") or j.get("url")) and (j.get("id") or j.get("url")) not in seen]
+    new_jobs = [
+        j
+        for j in jobs
+        if (j.get("id") or j.get("url")) and (j.get("id") or j.get("url")) not in seen
+    ]
 
     if not new_jobs:
         return 0

@@ -9,14 +9,18 @@ from .logging_utils import setup_logging
 
 app = typer.Typer(add_completion=False, help="Find new jobs via public ATS endpoints")
 
+
 def _csv_list(val: Optional[str]) -> List[str]:
     if not val:
         return []
     return [s.strip() for s in val.split(",") if s.strip()]
 
+
 @app.command("scan")
 def scan(
-    companies_json: str = typer.Option(..., help="JSON array of companies from discover"),
+    companies_json: str = typer.Option(
+        ..., help="JSON array of companies from discover"
+    ),
     cities: Optional[str] = typer.Option(None, help="Comma list of cities"),
     keywords: Optional[str] = typer.Option(None, help="Comma list of content keywords"),
     provider: Optional[str] = typer.Option(None, help="Restrict to provider"),
@@ -24,7 +28,9 @@ def scan(
     min_score: int = typer.Option(0, help="Minimum score"),
     max_age_days: Optional[int] = typer.Option(None, help="Max age in days"),
     geo_radius_km: Optional[float] = typer.Option(None, help="Geofence radius in km"),
-    title_contains: Optional[str] = typer.Option(None, help='Title contains (comma). e.g. "automation, software"'),
+    title_contains: Optional[str] = typer.Option(
+        None, help='Title contains (comma). e.g. "automation, software"'
+    ),
 ):
     setup_logging()
     companies = json.loads(companies_json)
@@ -49,6 +55,7 @@ def scan(
 
     typer.echo(json.dumps({"results": results}, ensure_ascii=False))
 
+
 # NEW: provider diagnostics from CLI
 @app.command("debug-providers")
 def debug_providers():
@@ -57,5 +64,6 @@ def debug_providers():
     """
     setup_logging("DEBUG")
     import json as _json
+
     report = pipeline.diagnose_providers()
     typer.echo(_json.dumps(report, indent=2))

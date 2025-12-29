@@ -24,7 +24,9 @@ def serpapi_stub(monkeypatch):
     """
 
     def _stub(payloads: Mapping[str, Dict[str, Any]]):
-        def fake_http(url: str, params: Dict[str, Any] | None = None, timeout: float = 25.0):
+        def fake_http(
+            url: str, params: Dict[str, Any] | None = None, timeout: float = 25.0
+        ):
             query = (params or {}).get("q", "")
             for host, payload in payloads.items():
                 if host in query:
@@ -47,7 +49,12 @@ def provider_stub(monkeypatch):
         def fake_import(provider: str):
             provider_jobs = jobs_by_provider.get(provider, {})
 
-            def fetch_jobs(org: str | None = None, slug: str | None = None, company: str | None = None, **_: Any):
+            def fetch_jobs(
+                org: str | None = None,
+                slug: str | None = None,
+                company: str | None = None,
+                **_: Any,
+            ):
                 key = org or slug or company or ""
                 return provider_jobs.get(key, [])
 

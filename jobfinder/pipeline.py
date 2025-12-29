@@ -60,8 +60,10 @@ _CITY_ALIASES = {
 
 # ----------------- utils -----------------
 
+
 def _norm(s: Optional[str]) -> str:
     return (s or "").strip()
+
 
 def _as_str_list(seq) -> List[str]:
     # why: avoid `.strip()` on non-strings
@@ -73,6 +75,7 @@ def _as_str_list(seq) -> List[str]:
         if s:
             out.append(s)
     return out
+
 
 def _expand_city_aliases(cities: List[str]) -> List[str]:
     """
@@ -96,14 +99,20 @@ def _expand_city_aliases(cities: List[str]) -> List[str]:
             expanded.append(v_norm)
     return expanded
 
-def _http_get_json(url: str, params: Optional[Dict[str, Any]] = None, timeout: float = 25.0) -> Any:
+
+def _http_get_json(
+    url: str, params: Optional[Dict[str, Any]] = None, timeout: float = 25.0
+) -> Any:
     # why: no external deps
     qs = ("?" + urlencode(params)) if params else ""
-    req = Request(url + qs, headers={"User-Agent": "jobfinder/0.3", "Accept": "application/json"})
+    req = Request(
+        url + qs, headers={"User-Agent": "jobfinder/0.3", "Accept": "application/json"}
+    )
     ctx = ssl.create_default_context()
     with urlopen(req, timeout=timeout, context=ctx) as resp:
         data = resp.read()
         return json.loads(data.decode("utf-8", errors="ignore"))
+
 
 def _extract_org_from_url(_provider: str, url: str) -> Optional[str]:
     try:
@@ -112,6 +121,7 @@ def _extract_org_from_url(_provider: str, url: str) -> Optional[str]:
         return segs[0].lower() if segs else None
     except Exception:
         return None
+
 
 def _import_provider(provider: str):
     # try both layouts; log details
@@ -122,23 +132,38 @@ def _import_provider(provider: str):
             if spec is None:
                 log.debug("find_spec(%s) -> None", modname)
                 continue
-            log.debug("find_spec(%s) -> origin=%s", modname, getattr(spec, "origin", None))
+            log.debug(
+                "find_spec(%s) -> origin=%s", modname, getattr(spec, "origin", None)
+            )
             mod = importlib.import_module(modname)
-            log.info("Imported provider module: %s (%s)", modname, getattr(mod, "__file__", None))
+            log.info(
+                "Imported provider module: %s (%s)",
+                modname,
+                getattr(mod, "__file__", None),
+            )
             return mod
         except Exception as e:
             last_exc = e
             log.warning("Import attempt failed: %s (%s)", modname, e, exc_info=True)
-    log.error("Provider module not found: %s | sys.path[0]=%s", provider, sys.path[0] if sys.path else None)
+    log.error(
+        "Provider module not found: %s | sys.path[0]=%s",
+        provider,
+        sys.path[0] if sys.path else None,
+    )
     if last_exc:
         log.error("Last import error for %s: %s", provider, last_exc)
     return None
+
 
 def _call_fetch(fetch_fn, org: str) -> List[Dict[str, Any]]:
     # flexible signature
     for kwargs in ({"org": org}, {"slug": org}, {"company": org}, {}):
         try:
-            log.debug("Calling %s with %r", getattr(fetch_fn, "__qualname__", fetch_fn), kwargs or {"_positional": "org"})
+            log.debug(
+                "Calling %s with %r",
+                getattr(fetch_fn, "__qualname__", fetch_fn),
+                kwargs or {"_positional": "org"},
+            )
             if kwargs:
                 return list(fetch_fn(**kwargs))
             else:
@@ -146,9 +171,16 @@ def _call_fetch(fetch_fn, org: str) -> List[Dict[str, Any]]:
         except TypeError:
             continue
         except Exception as e:
-            log.warning("fetch_jobs failed for org=%s using %s: %s", org, kwargs, e, exc_info=True)
+            log.warning(
+                "fetch_jobs failed for org=%s using %s: %s",
+                org,
+                kwargs,
+                e,
+                exc_info=True,
+            )
             break
     return []
+
 
 def _infer_work_mode(title: str, location: str, remote_flag: Optional[bool]) -> str:
     t, l = title.lower(), location.lower()
@@ -160,13 +192,27 @@ def _infer_work_mode(title: str, location: str, remote_flag: Optional[bool]) -> 
         return "onsite"
     return ""
 
-def _normalize_job(company: Dict[str, Any], provider: str, raw: Dict[str, Any]) -> Dict[str, Any]:
+
+def _normalize_job(
+    company: Dict[str, Any], provider: str, raw: Dict[str, Any]
+) -> Dict[str, Any]:
     org = company.get("org") or company.get("name") or ""
     title = _norm(str(raw.get("title")))
-    location = _norm(str(raw.get("location") or raw.get("city") or raw.get("office") or ""))
-    url = _norm(str(raw.get("url") or raw.get("apply_url") or raw.get("absolute_url") or ""))
+    location = _norm(
+        str(raw.get("location") or raw.get("city") or raw.get("office") or "")
+    )
+    url = _norm(
+        str(raw.get("url") or raw.get("apply_url") or raw.get("absolute_url") or "")
+    )
     jid = _norm(str(raw.get("id") or raw.get("job_id") or url))
-    created_at = _norm(str(raw.get("created_at") or raw.get("updated_at") or raw.get("published_at") or ""))
+    created_at = _norm(
+        str(
+            raw.get("created_at")
+            or raw.get("updated_at")
+            or raw.get("published_at")
+            or ""
+        )
+    )
     remote_val = raw.get("remote")
     remote_flag = remote_val if isinstance(remote_val, bool) else None
     work_mode = _infer_work_mode(title, location, remote_flag)
@@ -182,6 +228,7 @@ def _normalize_job(company: Dict[str, Any], provider: str, raw: Dict[str, Any]) 
         "extra": {**raw, "work_mode": work_mode},
     }
 
+
 def _city_match(location: str, cities: Iterable[Any]) -> bool:
     loc = (location or "").lower()
     for c in cities or []:
@@ -189,6 +236,7 @@ def _city_match(location: str, cities: Iterable[Any]) -> bool:
         if c2 and c2 in loc:
             return True
     return False
+
 
 def _dedupe(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     seen = set()
@@ -202,7 +250,10 @@ def _dedupe(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         out.append(j)
     return out
 
-def _compute_score(job: Dict[str, Any], keywords: List[str], cities: List[str]) -> Tuple[int, str]:
+
+def _compute_score(
+    job: Dict[str, Any], keywords: List[str], cities: List[str]
+) -> Tuple[int, str]:
     """
     Compute score and reasons using filtering.score (expects a Job dataclass).
     """
@@ -224,7 +275,11 @@ def _compute_score(job: Dict[str, Any], keywords: List[str], cities: List[str]) 
     )
     try:
         score_val, reasons = filtering.score(job_obj, keywords, cities)
-        reason_str = ", ".join(reasons or []) if isinstance(reasons, (list, tuple, set)) else str(reasons or "")
+        reason_str = (
+            ", ".join(reasons or [])
+            if isinstance(reasons, (list, tuple, set))
+            else str(reasons or "")
+        )
         return int(score_val or 0), reason_str
     except Exception:
         try:
@@ -232,7 +287,9 @@ def _compute_score(job: Dict[str, Any], keywords: List[str], cities: List[str]) 
         except Exception:
             return 0, ""
 
+
 # --------------- compat shim for filtering ----------------
+
 
 def _apply_filters_compat(
     results: List[Dict[str, Any]],
@@ -279,7 +336,9 @@ def _apply_filters_compat(
     except TypeError:
         # very old signature: try progressively simpler forms
         try:
-            return apply_filters(results, min_score=min_score, max_age_days=max_age_days)
+            return apply_filters(
+                results, min_score=min_score, max_age_days=max_age_days
+            )
         except TypeError:
             try:
                 return apply_filters(results, min_score=min_score)
@@ -291,7 +350,9 @@ def _apply_filters_compat(
     except Exception:
         return results
 
+
 # ----------------- diagnostics -----------------
+
 
 def diagnose_providers() -> Dict[str, Any]:
     report: Dict[str, Any] = {
@@ -300,11 +361,20 @@ def diagnose_providers() -> Dict[str, Any]:
         "providers": {},
     }
     for name in PROVIDERS:
-        entry: Dict[str, Any] = {"candidates": [], "imported": False, "module_file": None, "error": None}
+        entry: Dict[str, Any] = {
+            "candidates": [],
+            "imported": False,
+            "module_file": None,
+            "error": None,
+        }
         for modname in (f"jobfinder.providers.{name}", f"providers.{name}"):
             spec = importlib.util.find_spec(modname)
             entry["candidates"].append(
-                {"module": modname, "found": bool(spec), "origin": getattr(spec, "origin", None) if spec else None}
+                {
+                    "module": modname,
+                    "found": bool(spec),
+                    "origin": getattr(spec, "origin", None) if spec else None,
+                }
             )
             if spec:
                 try:
@@ -318,7 +388,9 @@ def diagnose_providers() -> Dict[str, Any]:
         report["providers"][name] = entry
     return report
 
+
 # ----------------- discover -----------------
+
 
 def discover(
     *,
@@ -339,11 +411,17 @@ def discover(
         host = _PROVIDER_HOST.get(provider)
         if not host:
             continue
-        for city in (cities_expanded or [""]):
+        for city in cities_expanded or [""]:
             q = f'site:{host} "{city}" {q_keywords}'.strip()
-            params = {"engine": "google", "q": q, "num": 10, "hl": "en", "api_key": api_key}
+            params = {
+                "engine": "google",
+                "q": q,
+                "num": 10,
+                "hl": "en",
+                "api_key": api_key,
+            }
             data = _http_get_json("https://serpapi.com/search.json", params=params)
-            for item in (data.get("organic_results") or []):
+            for item in data.get("organic_results") or []:
                 link = item.get("link") or ""
                 if not link or host not in link:
                     continue
@@ -369,9 +447,13 @@ def discover(
             break
     return list(results.values())
 
+
 # ----------------- scan helpers -----------------
 
-def _load_fetchers(companies: List[Dict[str, Any]], prov_filter: Optional[str]) -> Dict[str, Any]:
+
+def _load_fetchers(
+    companies: List[Dict[str, Any]], prov_filter: Optional[str]
+) -> Dict[str, Any]:
     """
     Preload provider modules once per scan/refresh to avoid repeated imports.
     """
@@ -423,7 +505,11 @@ def _process_company_jobs(
             if reasons:
                 j["reasons"] = reasons
 
-        if filter_by_cities and cities and not _city_match(j.get("location", ""), cities):
+        if (
+            filter_by_cities
+            and cities
+            and not _city_match(j.get("location", ""), cities)
+        ):
             continue
 
         company_jobs.append(j)
@@ -446,7 +532,11 @@ def _collect_jobs(
     companies = companies or []
     cities_list = _expand_city_aliases(_as_str_list(cities))
     keywords_list = _as_str_list(keywords)
-    prov_filter = (str(provider).strip().lower()) if (provider is not None and provider != "") else None
+    prov_filter = (
+        (str(provider).strip().lower())
+        if (provider is not None and provider != "")
+        else None
+    )
 
     fetchers = _load_fetchers(companies, prov_filter)
     per_company: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
@@ -454,7 +544,9 @@ def _collect_jobs(
     if companies:
         max_workers = min(8, len(companies))
 
-        def runner(c: Dict[str, Any]) -> Tuple[Optional[Tuple[str, str]], List[Dict[str, Any]]]:
+        def runner(
+            c: Dict[str, Any],
+        ) -> Tuple[Optional[Tuple[str, str]], List[Dict[str, Any]]]:
             return _process_company_jobs(
                 c,
                 fetchers=fetchers,
@@ -489,7 +581,9 @@ def _collect_jobs(
 
     return flat_results, per_company
 
+
 # ----------------- scan -----------------
+
 
 def scan(
     *,
@@ -502,8 +596,13 @@ def scan(
     max_age_days: Optional[int] = None,
     geo: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
-    log.info("scan() starting | cwd=%s | provider=%s | cities=%s | companies=%d",
-             os.getcwd(), provider, cities, len(companies or []))
+    log.info(
+        "scan() starting | cwd=%s | provider=%s | cities=%s | companies=%d",
+        os.getcwd(),
+        provider,
+        cities,
+        len(companies or []),
+    )
     log.debug("sys.path[0..4]=%s", sys.path[:5])
 
     results, _ = _collect_jobs(
@@ -522,7 +621,9 @@ def scan(
     log.info("scan() done | results=%d", len(results))
     return results
 
+
 # ----------------- refresh (DB ingest) -----------------
+
 
 def refresh(
     *,
@@ -578,7 +679,11 @@ def refresh(
                 refreshed += 1
 
             marked_inactive += db.mark_inactive(
-                session, provider=company_row.provider, org=company_row.org, seen_keys=seen_keys, seen_at=now
+                session,
+                provider=company_row.provider,
+                org=company_row.org,
+                seen_keys=seen_keys,
+                seen_at=now,
             )
 
     return {
@@ -588,7 +693,9 @@ def refresh(
         "companies": len(companies or []),
     }
 
+
 # ----------------- query (DB only) -----------------
+
 
 def query_jobs(
     *,
@@ -616,7 +723,9 @@ def query_jobs(
     title_kw_list = _as_str_list(title_keywords)
     prov_filter = (str(provider).strip().lower()) if provider else None
     org_set = {s.lower() for s in _as_str_list(orgs)} if orgs else set()
-    company_name_set = {s.lower() for s in _as_str_list(company_names)} if company_names else set()
+    company_name_set = (
+        {s.lower() for s in _as_str_list(company_names)} if company_names else set()
+    )
 
     limit_val = int(limit or 0)
     offset_val = max(0, int(offset or 0))
@@ -665,7 +774,9 @@ def query_jobs(
 
             if title_kw_list and hasattr(filtering, "filter_by_title_keywords"):
                 try:
-                    jobs_batch = filtering.filter_by_title_keywords(jobs_batch, title_kw_list)
+                    jobs_batch = filtering.filter_by_title_keywords(
+                        jobs_batch, title_kw_list
+                    )
                 except Exception:
                     pass
 

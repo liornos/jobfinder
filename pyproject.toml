@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jobfinder"
-version = "0.3.0"
+version = "1.0.1"
 description = "CLI + Flask API + Web UI for discovering companies and fetching jobs from ATS providers"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -23,6 +23,11 @@ dependencies = [
 [project.optional-dependencies]
 extras = ["rapidfuzz>=3.9.1"]
 pg = ["psycopg[binary]>=3.2"]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.6.0",
+]
 [project.scripts]
 jobfinder = "jobfinder.cli:app"
 jobfinder-api = "jobfinder.api:main"
