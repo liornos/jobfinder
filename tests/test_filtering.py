@@ -60,7 +60,12 @@ def test_apply_filters_remote_and_city_logic():
         },
     ]
 
-    filters = {"provider": ["greenhouse"], "remote": "true", "cities": ["tel aviv"], "min_score": 5}
+    filters = {
+        "provider": ["greenhouse"],
+        "remote": "true",
+        "cities": ["tel aviv"],
+        "min_score": 5,
+    }
     filtered = filtering.apply_filters(rows, filters)
 
     assert [r["id"] for r in filtered] == ["r1"]

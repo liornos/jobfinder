@@ -10,11 +10,17 @@ API_PATTERNS = [
     "https://apply.workable.com/api/v1/accounts/{org}/jobs",
 ]
 
+
 def _loc_str(loc: Any) -> str:
     if isinstance(loc, dict):
-        parts = [loc.get("city"), loc.get("region") or loc.get("state"), loc.get("country")]
+        parts = [
+            loc.get("city"),
+            loc.get("region") or loc.get("state"),
+            loc.get("country"),
+        ]
         return ", ".join([p for p in parts if p])
     return str(loc) if loc else ""
+
 
 def fetch_jobs(org: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """Fetch jobs from Workable public API endpoints."""
@@ -27,7 +33,12 @@ def fetch_jobs(org: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]
             if isinstance(data, dict) and not isinstance(results, list):
                 results = data.get("jobs") or data.get("data") or []
             if isinstance(results, dict):
-                results = results.get("results") or results.get("jobs") or results.get("data") or []
+                results = (
+                    results.get("results")
+                    or results.get("jobs")
+                    or results.get("data")
+                    or []
+                )
             if not isinstance(results, list):
                 continue
             for j in results:
@@ -43,7 +54,9 @@ def fetch_jobs(org: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]
                         "location": loc,
                         "url": job_url,
                         "created_at": j.get("published_at") or j.get("updated_at"),
-                        "remote": j.get("workplace_type") == "remote" if j.get("workplace_type") else j.get("remote"),
+                        "remote": j.get("workplace_type") == "remote"
+                        if j.get("workplace_type")
+                        else j.get("remote"),
                         "description": j.get("description") or "",
                     }
                 )

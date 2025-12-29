@@ -10,8 +10,8 @@ from typing import Iterable
 def send_email_gmail(*, subject: str, text: str, to_addrs: Iterable[str]) -> None:
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     port = int(os.environ.get("SMTP_PORT", "587"))
-    user = os.environ["SMTP_USER"]          # your@gmail.com
-    password = os.environ["SMTP_PASS"]      # app password
+    user = os.environ["SMTP_USER"]  # your@gmail.com
+    password = os.environ["SMTP_PASS"]  # app password
     mail_from = os.environ.get("ALERT_EMAIL_FROM", user)
 
     to_addrs = [a.strip() for a in to_addrs if a and a.strip()]

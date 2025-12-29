@@ -10,7 +10,9 @@ def resolve_companies_json() -> Path:
     candidates = [
         Path.cwd() / "static" / "companies.json",
         Path.cwd() / "jobfinder" / "static" / "companies.json",
-        Path(__file__).resolve().parents[1] / "static" / "companies.json",  # jobfinder/static
+        Path(__file__).resolve().parents[1]
+        / "static"
+        / "companies.json",  # jobfinder/static
     ]
     for p in candidates:
         if p.exists():
@@ -53,4 +55,3 @@ def load_companies(path: Path | None = None) -> List[Dict[str, Any]]:
         )
 
     return out
-

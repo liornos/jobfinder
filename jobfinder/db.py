@@ -22,7 +22,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
 
 from . import filtering
 from .models import Job as JobModel
@@ -57,14 +64,18 @@ class Company(Base):
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
     org: Mapped[str] = mapped_column(String(255), nullable=False)
     careers_url: Mapped[Optional[str]] = mapped_column(String(1024))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    jobs: Mapped[List["Job"]] = relationship(back_populates="company", cascade="all, delete-orphan")
+    jobs: Mapped[List["Job"]] = relationship(
+        back_populates="company", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (UniqueConstraint("provider", "org", name="uq_provider_org"),)
 
@@ -76,7 +87,9 @@ class Job(Base):
     job_key: Mapped[str] = mapped_column(String(512), nullable=False, unique=True)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
     org: Mapped[str] = mapped_column(String(255), nullable=False)
-    company_id: Mapped[Optional[int]] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
+    company_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("companies.id", ondelete="CASCADE")
+    )
     company_name: Mapped[Optional[str]] = mapped_column(String(255))
     title: Mapped[Optional[str]] = mapped_column(String(512))
     location: Mapped[Optional[str]] = mapped_column(String(512))
@@ -85,7 +98,9 @@ class Job(Base):
     work_mode: Mapped[Optional[str]] = mapped_column(String(32))
     description: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     external_id: Mapped[Optional[str]] = mapped_column(String(255))
     raw_json: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONType)
@@ -101,7 +116,12 @@ _DB_URL: Optional[str] = None
 
 
 def _database_url(url: Optional[str] = None) -> str:
-    return url or os.getenv("JOBFINDER_DATABASE_URL") or os.getenv("DATABASE_URL") or "sqlite:///jobfinder.db"
+    return (
+        url
+        or os.getenv("JOBFINDER_DATABASE_URL")
+        or os.getenv("DATABASE_URL")
+        or "sqlite:///jobfinder.db"
+    )
 
 
 def get_engine(url: Optional[str] = None) -> Engine:
@@ -176,6 +196,7 @@ def _parse_datetime(val: Any) -> Optional[datetime]:
         return dt
     return None
 
+
 def _normalize_description(val: Any) -> Optional[str]:
     """
     Ensure description is stored as text (SQLite can't bind lists/dicts).
@@ -186,12 +207,15 @@ def _normalize_description(val: Any) -> Optional[str]:
         return val
     try:
         import json as _json
+
         return _json.dumps(val, ensure_ascii=False)
     except Exception:
         return str(val)
 
 
-def build_job_key(provider: str, org: str, external_id: Optional[str], url: Optional[str]) -> str:
+def build_job_key(
+    provider: str, org: str, external_id: Optional[str], url: Optional[str]
+) -> str:
     """
     Stable job dedupe key. Prefer provider:org:<external_id>, else hash of URL.
     """
@@ -238,7 +262,9 @@ def upsert_company(session: Session, payload: Dict[str, Any]) -> Company:
     return company
 
 
-def _score_job(job_dict: Dict[str, Any], keywords: Sequence[str], cities: Sequence[str]) -> Tuple[int, str]:
+def _score_job(
+    job_dict: Dict[str, Any], keywords: Sequence[str], cities: Sequence[str]
+) -> Tuple[int, str]:
     """
     Compute score + reasons using filtering.score (which expects a Job dataclass).
     """
@@ -255,7 +281,9 @@ def _score_job(job_dict: Dict[str, Any], keywords: Sequence[str], cities: Sequen
         extra=job_dict.get("extra"),
     )
     try:
-        score_val, reasons = filtering.score(job_obj, list(keywords or []), list(cities or []))
+        score_val, reasons = filtering.score(
+            job_obj, list(keywords or []), list(cities or [])
+        )
         return int(score_val or 0), ", ".join(reasons or [])
     except Exception:
         return int(job_dict.get("score") or 0), str(job_dict.get("reasons") or "")
@@ -277,7 +305,9 @@ def upsert_job(
     job_key = build_job_key(provider, org, external_id, url)
 
     created_at = _parse_datetime(job_dict.get("created_at"))
-    description = _normalize_description(job_dict.get("description") or (job_dict.get("extra") or {}).get("description"))
+    description = _normalize_description(
+        job_dict.get("description") or (job_dict.get("extra") or {}).get("description")
+    )
     raw_json = job_dict.get("extra") or {}
     if not isinstance(raw_json, dict):
         raw_json = {"value": raw_json}
@@ -332,7 +362,12 @@ def upsert_job(
 
 
 def mark_inactive(
-    session: Session, *, provider: str, org: str, seen_keys: Sequence[str], seen_at: datetime
+    session: Session,
+    *,
+    provider: str,
+    org: str,
+    seen_keys: Sequence[str],
+    seen_at: datetime,
 ) -> int:
     """
     Mark jobs for a provider/org as inactive if they were not seen in the latest refresh.
