@@ -27,6 +27,9 @@ dev = [
     "pytest>=7.4",
     "pytest-cov>=4.1",
     "ruff>=0.6.0",
+    "mypy>=1.10.0",
+    "pre-commit>=3.7.0",
+    "types-PyYAML>=6.0.12",
 ]
 [project.scripts]
 jobfinder = "jobfinder.cli:app"
@@ -37,3 +40,16 @@ include-package-data = true
 jobfinder = ["templates/*.html", "static/*", "static/**/*"]
 [tool.setuptools.packages.find]
 where = ["."]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["F", "E4", "E7", "E9"]
+
+[tool.ruff.format]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true

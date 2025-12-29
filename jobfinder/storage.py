@@ -1,5 +1,8 @@
 from __future__ import annotations
-import csv, sqlite3, json
+
+import csv
+import json
+import sqlite3
 from pathlib import Path
 from typing import Iterable, Dict, Any
 

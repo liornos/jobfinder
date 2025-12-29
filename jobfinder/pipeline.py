@@ -11,7 +11,7 @@ import ssl
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
@@ -183,12 +183,23 @@ def _call_fetch(fetch_fn, org: str) -> List[Dict[str, Any]]:
 
 
 def _infer_work_mode(title: str, location: str, remote_flag: Optional[bool]) -> str:
-    t, l = title.lower(), location.lower()
-    if "hybrid" in t or "hybrid" in l:
+    title_lower = title.lower()
+    location_lower = location.lower()
+    if "hybrid" in title_lower or "hybrid" in location_lower:
         return "hybrid"
-    if remote_flag is True or "remote" in t or "remote" in l or "work from home" in l:
+    if (
+        remote_flag is True
+        or "remote" in title_lower
+        or "remote" in location_lower
+        or "work from home" in location_lower
+    ):
         return "remote"
-    if "onsite" in t or "on-site" in t or "onsite" in l or "on-site" in l:
+    if (
+        "onsite" in title_lower
+        or "on-site" in title_lower
+        or "onsite" in location_lower
+        or "on-site" in location_lower
+    ):
         return "onsite"
     return ""
 
@@ -258,7 +269,7 @@ def _compute_score(
     Compute score and reasons using filtering.score (expects a Job dataclass).
     """
     try:
-        created_at = filtering._parse_created_at(job.get("created_at"))  # type: ignore[attr-defined]
+        created_at = filtering._parse_created_at(job.get("created_at"))
     except Exception:
         created_at = None
 
@@ -304,13 +315,14 @@ def _apply_filters_compat(
     Introspects filtering.apply_filters and passes only supported kwargs.
     Falls back to simpler call patterns if needed.
     """
-    filt = {
+    filt: Dict[str, Any] = {
         "provider": provider,
         "remote": remote,
         "min_score": min_score,
         "max_age_days": max_age_days,
         "cities": cities,
     }
+    apply_filters_fn = cast(Callable[..., List[Dict[str, Any]]], apply_filters)
     try:
         sig = inspect.signature(apply_filters)
         param_names = {p.name for p in sig.parameters.values()}
@@ -319,9 +331,9 @@ def _apply_filters_compat(
         param_names.discard("rows")
 
         if "filters" in param_names:
-            return apply_filters(results, filt)
+            return apply_filters_fn(results, filt)
 
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if "provider" in param_names:
             kwargs["provider"] = provider
         if "remote" in param_names:
@@ -332,19 +344,19 @@ def _apply_filters_compat(
             kwargs["max_age_days"] = max_age_days
         if "cities" in param_names:
             kwargs["cities"] = cities
-        return apply_filters(results, **kwargs)
+        return apply_filters_fn(results, **kwargs)
     except TypeError:
         # very old signature: try progressively simpler forms
         try:
-            return apply_filters(
+            return apply_filters_fn(
                 results, min_score=min_score, max_age_days=max_age_days
             )
         except TypeError:
             try:
-                return apply_filters(results, min_score=min_score)
+                return apply_filters_fn(results, min_score=min_score)
             except TypeError:
                 try:
-                    return apply_filters(results)
+                    return apply_filters_fn(results)
                 except Exception:
                     return results
     except Exception:
