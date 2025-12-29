@@ -41,7 +41,12 @@ def _normalize_name_from_org(org: str) -> str:
 
 async def _serpapi_search(query: str, api_key: str, num: int = 10) -> List[Dict]:
     url = "https://serpapi.com/search.json"
-    params = {"engine": "google", "q": query, "num": num, "api_key": api_key}
+    params: dict[str, str | int] = {
+        "engine": "google",
+        "q": query,
+        "num": num,
+        "api_key": api_key,
+    }
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(url, params=params)
         r.raise_for_status()

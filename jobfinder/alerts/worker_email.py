@@ -141,18 +141,25 @@ def run_once() -> int:
     jobs = _dedupe_jobs(jobs)
 
     # Use id, fallback to url (important for providers that don't give stable ids)
-    ids = [(j.get("id") or j.get("url")) for j in jobs]
-    ids = [i for i in ids if i]
+    ids: List[str] = []
+    for j in jobs:
+        job_id = j.get("id") or j.get("url")
+        if job_id:
+            ids.append(str(job_id))
 
     state_db = Path(os.environ.get("ALERT_STATE_DB", "/tmp/jobfinder_alerts.sqlite"))
     state = AlertState(state_db)
 
     seen = state.already_seen(ids)
-    new_jobs = [
-        j
-        for j in jobs
-        if (j.get("id") or j.get("url")) and (j.get("id") or j.get("url")) not in seen
-    ]
+    new_jobs = []
+    for j in jobs:
+        job_id = j.get("id") or j.get("url")
+        if not job_id:
+            continue
+        job_id = str(job_id)
+        if job_id in seen:
+            continue
+        new_jobs.append(j)
 
     if not new_jobs:
         return 0
@@ -164,7 +171,12 @@ def run_once() -> int:
     send_email_gmail(subject=subject, text=text, to_addrs=to_addrs)
 
     # Mark as seen only after successful send
-    state.mark_seen([(j.get("id") or j.get("url")) for j in new_jobs])
+    seen_ids: List[str] = []
+    for j in new_jobs:
+        job_id = j.get("id") or j.get("url")
+        if job_id:
+            seen_ids.append(str(job_id))
+    state.mark_seen(seen_ids)
     return len(new_jobs)
 
 

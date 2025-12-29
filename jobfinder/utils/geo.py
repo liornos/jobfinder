@@ -45,7 +45,7 @@ async def geocode_place(place: str) -> Optional[Tuple[float, float]]:
     if place_key in cache:
         return cache[place_key]
     url = "https://nominatim.openstreetmap.org/search"
-    params = {"q": place, "format": "jsonv2", "limit": 1}
+    params: dict[str, str | int] = {"q": place, "format": "jsonv2", "limit": 1}
     async with httpx.AsyncClient(timeout=20, headers=UA) as client:
         r = await client.get(url, params=params)
         r.raise_for_status()

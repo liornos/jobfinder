@@ -4,7 +4,7 @@ import hashlib
 import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 from sqlalchemy import (
     JSON,
@@ -154,7 +154,7 @@ def get_session(url: Optional[str] = None) -> Session:
 
 
 @contextmanager
-def session_scope(url: Optional[str] = None) -> Iterable[Session]:
+def session_scope(url: Optional[str] = None) -> Iterator[Session]:
     """
     Provide a transactional scope around a series of operations.
     """
@@ -190,7 +190,7 @@ def _coerce_bool(val: Any) -> Optional[bool]:
 
 
 def _parse_datetime(val: Any) -> Optional[datetime]:
-    dt = filtering._parse_created_at(val)  # type: ignore[attr-defined]
+    dt = filtering._parse_created_at(val)
     if dt:
         return dt
     return None
@@ -376,11 +376,12 @@ def mark_inactive(
         conditions.append(Job.job_key.not_in(list(seen_keys)))
     stmt = update(Job).where(*conditions).values(is_active=False, last_seen_at=seen_at)
     res = session.execute(stmt)
-    return res.rowcount or 0
+    rowcount = getattr(res, "rowcount", None)
+    return int(rowcount or 0)
 
 
 def job_to_dict(row: Job) -> Dict[str, Any]:
-    payload = {
+    payload: Dict[str, Any] = {
         "id": row.external_id or row.job_key,
         "job_key": row.job_key,
         "title": row.title,
