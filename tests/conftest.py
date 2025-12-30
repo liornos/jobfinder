@@ -5,6 +5,8 @@ from typing import Any, Dict, Mapping
 
 import pytest
 
+from jobfinder.api import create_app
+
 from jobfinder import pipeline
 
 
@@ -74,3 +76,16 @@ def temp_db_url(tmp_path, monkeypatch):
     path = tmp_path / "jobs.db"
     monkeypatch.setenv("JOBFINDER_DATABASE_URL", f"sqlite:///{path.as_posix()}")
     return path
+
+
+@pytest.fixture()
+def app(monkeypatch):
+    monkeypatch.setenv("JOBFINDER_DATABASE_URL", "sqlite:///:memory:")
+    app = create_app()
+    app.config.update(TESTING=True)
+    return app
+
+
+@pytest.fixture()
+def client(app):
+    return app.test_client()
