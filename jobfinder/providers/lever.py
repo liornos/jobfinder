@@ -12,7 +12,11 @@ def _ms_to_iso(ms: Optional[int]) -> Optional[str]:
     if not ms:
         return None
     try:
-        return _dt.datetime.utcfromtimestamp(ms / 1000).isoformat() + "Z"
+        return (
+            _dt.datetime.fromtimestamp(ms / 1000, tz=_dt.timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
     except Exception:
         return None
 

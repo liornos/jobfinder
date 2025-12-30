@@ -1,0 +1,18 @@
+[
+  {
+    "id": "lv-1",
+    "text": "QA Engineer",
+    "categories": {"location": "Tel Aviv"},
+    "hostedUrl": "https://jobs.lever.co/lendbuzz/123",
+    "createdAt": 1700000000000,
+    "lists": "Own test strategy and release quality."
+  },
+  {
+    "id": "lv-2",
+    "text": "Backend Engineer",
+    "categories": {"location": "Remote"},
+    "hostedUrl": "https://jobs.lever.co/lendbuzz/456",
+    "updatedAt": 1700003600000,
+    "lists": "Build and scale core APIs."
+  }
+]

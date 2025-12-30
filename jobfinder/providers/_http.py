@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import ssl
 from typing import Any, Dict, Optional
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -16,6 +17,11 @@ def get_json(
         url + qs, headers={"User-Agent": "jobfinder/0.3", "Accept": "application/json"}
     )
     ctx = ssl.create_default_context()
-    with urlopen(req, timeout=timeout, context=ctx) as resp:
-        data = resp.read()
-        return json.loads(data.decode("utf-8", errors="ignore"))
+    try:
+        with urlopen(req, timeout=timeout, context=ctx) as resp:
+            data = resp.read()
+            return json.loads(data.decode("utf-8", errors="ignore"))
+    except HTTPError as exc:
+        if exc.code == 404:
+            return {}
+        raise
