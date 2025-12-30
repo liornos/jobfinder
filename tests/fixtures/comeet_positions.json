@@ -1,0 +1,22 @@
+{
+  "positions": [
+    {
+      "uid": "90.00C",
+      "name": "QA Automation Engineer",
+      "location": {"name": "Tel Aviv"},
+      "url": "https://www.comeet.com/jobs/liveu/90.00C/qa-automation-engineer/BB.F51",
+      "created_at": "2025-01-01T00:00:00Z",
+      "remote": false,
+      "description": "Own QA automation for core platforms."
+    },
+    {
+      "uid": "43.009",
+      "name": "Senior QA Automation",
+      "location": {"name": "Ramat Gan"},
+      "url": "https://www.comeet.com/jobs/integritylabs/43.009/senior-qa-automation/18.F5A",
+      "updated_at": "2025-01-02T00:00:00Z",
+      "remote": false,
+      "description": "Build scalable automation suites."
+    }
+  ]
+}

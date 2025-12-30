@@ -45,7 +45,7 @@ _PROVIDER_HOST = {
     "ashby": "jobs.ashbyhq.com",
     "smartrecruiters": "jobs.smartrecruiters.com",
     "breezy": "breezy.hr",
-    "comeet": "comeet.co",
+    "comeet": "comeet.com",
     "workday": "myworkdayjobs.com",
     "recruitee": "recruitee.com",
     "jobvite": "jobvite.com",
@@ -118,6 +118,8 @@ def _extract_org_from_url(_provider: str, url: str) -> Optional[str]:
     try:
         p = urlparse(url)
         segs = [s for s in (p.path or "").split("/") if s]
+        if _provider == "comeet" and len(segs) >= 2 and segs[0].lower() == "jobs":
+            return segs[1].lower()
         return segs[0].lower() if segs else None
     except Exception:
         return None

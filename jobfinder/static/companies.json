@@ -377,6 +377,34 @@
       "provider": "jobvite",
       "careers_url": "https://jobvite.com/varonis-internal",
       "city": "Herzliya"
+    },
+    {
+      "name": "liveu",
+      "org": "liveu",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/liveu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "integritylabs",
+      "org": "integritylabs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/integritylabs",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "cyera",
+      "org": "cyera",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cyera",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "infinidat",
+      "org": "infinidat",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/infinidat",
+      "city": "Herzliya"
     }
   ]
 }
