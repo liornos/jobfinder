@@ -1,0 +1,20 @@
+{
+  "jobs": [
+    {
+      "id": 101,
+      "title": "Data Engineer",
+      "location": {"name": "New York, NY"},
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/101",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "content": "Build data pipelines and analytics."
+    },
+    {
+      "id": 102,
+      "title": "Frontend Engineer",
+      "location": {"name": "Tel Aviv"},
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/102",
+      "created_at": "2025-01-02T00:00:00Z",
+      "content": "Own UI performance and UX."
+    }
+  ]
+}
