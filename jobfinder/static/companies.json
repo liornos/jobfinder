@@ -377,6 +377,223 @@
       "provider": "jobvite",
       "careers_url": "https://jobvite.com/varonis-internal",
       "city": "Herzliya"
+    },
+    {
+      "name": "liveu",
+      "org": "liveu",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/liveu/90.00C/qa-automation-engineer/BB.F51?coref=1.10.s96_85A",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "integritylabs",
+      "org": "integritylabs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/integritylabs/43.009/senior-qa-automation/18.F5A",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "cyera",
+      "org": "cyera",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cyera/17.008/qa-automation-engineer--dlp/FB.B50",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "infinidat",
+      "org": "infinidat",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/infinidat/D6.003",
+      "city": "Herzliya"
+    },
+    {
+      "name": "AT&T Israel",
+      "org": "attisrael",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/joinattil/38.00A",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "AT&T Israel",
+      "org": "attisrael",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/attisrael",
+      "city": "Airport City"
+    },
+    {
+      "name": "CommIT",
+      "org": "comm-it",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/comm-it/76.008",
+      "city": "Petah Tikva"
+    },
+    {
+      "name": "CommIT",
+      "org": "comm-it",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/comm-it/76.008",
+      "city": "Herzliya"
+    },
+    {
+      "name": "monday.com",
+      "org": "monday",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/monday/41.00B",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Global-e",
+      "org": "global-e",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/global-e/62.002?coref=1.10.r34_C02",
+      "city": "Petah Tikva"
+    },
+    {
+      "name": "Kaltura",
+      "org": "kaltura",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/kaltura/E2.00D",
+      "city": "Ramat Gan"
+    },
+    {
+      "name": "Sunbit",
+      "org": "sunbit",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/sunbit/37.001",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Sunbit",
+      "org": "sunbit",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/sunbit/37.001",
+      "city": "Binyamina"
+    },
+    {
+      "name": "Agora",
+      "org": "agora",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/agora",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "Powtoon",
+      "org": "powtoon",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/powtoon",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "365Scores",
+      "org": "365scores",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/365scores",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "Silverfort",
+      "org": "silverfort",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/silverfort",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Guardio",
+      "org": "guardio",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/guardio",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Sentrycs",
+      "org": "sentrycs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/sentrycs",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "Hub Technologies",
+      "org": "hubtechnologies",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/hubtechnologies",
+      "city": "Israel"
+    },
+    {
+      "name": "Legit Security",
+      "org": "legitsecurity",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/legitsecurity",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Paragon",
+      "org": "paragon",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/paragon",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "KayHut",
+      "org": "kayhut",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/kayhut",
+      "city": "Herzliya"
+    },
+    {
+      "name": "Cyberillium",
+      "org": "cyberillium",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cyberillium",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "BioCatch",
+      "org": "biocatch",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/biocatch",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Cellebrite",
+      "org": "cellebrite",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cellebrite",
+      "city": "Petah Tikva"
+    },
+    {
+      "name": "Team8",
+      "org": "team8",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/team8/61.003",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "ibtikarbasecamp",
+      "org": "ibtikarbasecamp",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/ibtikarbasecamp/D9.008/",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "ai21",
+      "org": "ai21",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/ai21/E6.001",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "naturalint",
+      "org": "naturalint",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/naturalint/71.001",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "dreamgroup",
+      "org": "dreamgroup",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/dreamgroup/99.002",
+      "city": "Tel Aviv"
     }
   ]
 }
