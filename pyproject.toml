@@ -31,6 +31,9 @@ dev = [
     "pre-commit>=3.7.0",
     "types-PyYAML>=6.0.12",
 ]
+e2e = [
+    "playwright>=1.43.0",
+]
 [project.scripts]
 jobfinder = "jobfinder.cli:app"
 jobfinder-api = "jobfinder.api:main"

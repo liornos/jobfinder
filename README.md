@@ -77,6 +77,23 @@ jobfinder-api
 
 ---
 
+## E2E tests (Playwright)
+
+Install:
+```powershell
+pip install -e .[dev,e2e]
+playwright install chromium
+```
+
+Run:
+```powershell
+pytest -q tests/e2e
+```
+
+The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic runs.
+
+---
+
 ## API
 
 - Endpoints:
