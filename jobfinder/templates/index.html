@@ -10,15 +10,19 @@
 
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 text-slate-900">
   <div class="max-w-7xl mx-auto p-6">
-    <header class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-3xl font-bold">
-          jobfinder <span class="text-xs align-top text-slate-500">0.3.0</span>
-        </h1>
-        <p class="text-sm text-slate-600">Discover companies & fetch jobs from ATS providers</p>
+    <header class="mb-6 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+      <div class="hidden sm:block"></div>
+      <div class="flex items-center justify-center gap-4 text-center">
+        <img src="/static/jobfinder-image.png" alt="JobFinder logo" class="h-24 w-32 rounded-2xl shadow-md object-cover">
+        <div class="text-center">
+          <h1 class="text-3xl font-bold">
+            JobFinder
+          </h1>
+          <p class="text-sm text-slate-600">Discover companies & fetch jobs from ATS providers</p>
+        </div>
       </div>
 
-      <div class="text-sm flex items-center gap-3">
+      <div class="w-full text-sm flex items-center justify-center gap-3 sm:justify-end">
         <label class="inline-flex items-center gap-2 select-none">
           <input id="autoRefresh" type="checkbox" class="h-4 w-4 accent-black">
           <span>Auto refresh</span>

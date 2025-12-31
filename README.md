@@ -1,5 +1,7 @@
 # jobfinder - CLI + API + Web UI
 
+![JobFinder logo](jobfinder/static/jobfinder-image.png)
+
 Jobfinder helps you find open roles by location: discover companies by city/keywords, scan their ATS boards, and filter jobs by publish date or remote/hybrid/onsite status.
 
 Includes:
