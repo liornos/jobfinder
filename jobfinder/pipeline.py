@@ -157,9 +157,20 @@ def _import_provider(provider: str):
     return None
 
 
-def _call_fetch(fetch_fn, org: str) -> List[Dict[str, Any]]:
+def _call_fetch(
+    fetch_fn,
+    org: str,
+    company: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
     # flexible signature
-    for kwargs in ({"org": org}, {"slug": org}, {"company": org}, {}):
+    attempts: List[Dict[str, Any]] = []
+    if company:
+        attempts.append({"org": org, "company": company})
+        careers_url = (company.get("careers_url") or "").strip()
+        if careers_url:
+            attempts.append({"org": org, "careers_url": careers_url})
+    attempts.extend(({"org": org}, {"slug": org}, {"company": org}, {}))
+    for kwargs in attempts:
         try:
             log.debug(
                 "Calling %s with %r",
@@ -445,7 +456,7 @@ def discover(
                 key = (provider, org)
                 if key in results:
                     continue
-                careers_url = f"https://{host}/{org}"
+                careers_url = link if provider == "comeet" else f"https://{host}/{org}"
                 results[key] = {
                     "name": org,
                     "org": org,
@@ -508,7 +519,7 @@ def _process_company_jobs(
         return None, []
 
     fetch = fetchers.get(cprov)
-    raw_jobs = _call_fetch(fetch, org) if callable(fetch) else []
+    raw_jobs = _call_fetch(fetch, org, company=company) if callable(fetch) else []
 
     company_jobs: List[Dict[str, Any]] = []
     for rj in raw_jobs or []:
