@@ -11,6 +11,7 @@
   const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
 
   const isDebug = () => (localStorage.getItem("jobfinder_debug") || "") === "1";
+  const isE2eMode = () => new URLSearchParams(window.location.search).has("e2e");
   const log = (...args) => console.log("[jobfinder]", ...args);
   const debug = (...args) => { if (isDebug()) console.debug("[jobfinder:debug]", ...args); };
   const err = (...args) => console.error("[jobfinder:error]", ...args);
@@ -684,7 +685,7 @@
 
     // Load any existing jobs already in the DB so filters/pagination stay fast
     loadJobsFromDB({ silent: true });
-    autoRefreshOnStartup();
+    if (!isE2eMode()) autoRefreshOnStartup();
   }
 
   document.addEventListener("DOMContentLoaded", init);
