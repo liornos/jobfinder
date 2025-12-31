@@ -24,7 +24,12 @@ def live_server(tmp_path, monkeypatch) -> Iterator[str]:
     server = make_server("127.0.0.1", 0, app)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    host, port = server.server_address
+    addr = server.server_address
+    host = addr[0]
+    port = addr[1]
+    if isinstance(host, bytes):
+        host = host.decode()
+    host = str(host)
     try:
         yield f"http://{host}:{port}"
     finally:
