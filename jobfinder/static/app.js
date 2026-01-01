@@ -116,7 +116,6 @@
     initialized: false,
     scanInFlight: false,
     scanAbort: null,
-    autoRefreshTimer: null,
   };
 
   const CITY_ALIASES = {
@@ -613,24 +612,6 @@
     });
   }
 
-  function setupAutoRefresh() {
-    const chk = qs("#autoRefresh");
-    const sel = qs("#refreshInterval");
-    const update = () => {
-      if (state.autoRefreshTimer) {
-        clearInterval(state.autoRefreshTimer);
-        state.autoRefreshTimer = null;
-      }
-      if (chk && sel && chk.checked) {
-        const seconds = parseInt(sel.value, 10) || 30;
-        state.autoRefreshTimer = setInterval(() => refreshSelected({ silent: true }), seconds * 1000);
-      }
-    };
-    chk?.addEventListener("change", update);
-    sel?.addEventListener("change", update);
-    update();
-  }
-
   function setupDrawer() {
     const close = qs("#closeDrawer");
     const drawer = qs("#drawer");
@@ -705,7 +686,6 @@
     renderJobs();
     setupSort();
     setupPaging();
-    setupAutoRefresh();
     setupDrawer();
     setupFilters();
 
