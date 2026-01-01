@@ -19,6 +19,14 @@
   function saveLocal(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
   function loadLocal(key, def) { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } }
 
+  function debounce(fn, delayMs) {
+    let timer = null;
+    return (...args) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delayMs);
+    };
+  }
+
   function escapeHtml(s) {
     return (s ?? "").toString().replace(/[&<>"']/g, m => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -30,6 +38,17 @@
     div.innerHTML = html || "";
     div.querySelectorAll("script,style,iframe,object,embed,link").forEach(n => n.remove());
     return div.textContent || div.innerText || "";
+  }
+
+  function normalizeText(value) {
+    return (value ?? "").toString().toLowerCase().replace(/\s+/g, " ").trim();
+  }
+
+  function parseTitleKeywords(value) {
+    const raw = (value ?? "").toString().trim();
+    if (!raw) return [];
+    const parts = raw.includes(",") ? raw.split(",") : raw.split(/\s+/);
+    return parts.map(p => normalizeText(p)).filter(Boolean);
   }
 
   function fmtDate(iso) {
@@ -97,7 +116,6 @@
     initialized: false,
     scanInFlight: false,
     scanAbort: null,
-    autoRefreshTimer: null,
   };
 
   const CITY_ALIASES = {
@@ -229,6 +247,7 @@
     const remoteSel = qs("#fltRemote")?.value || "any";
     const minScore = parseInt(qs("#fltScore")?.value || "0", 10) || 0;
     const minSalary = parseInt(qs("#fltSalary")?.value || "0", 10) || 0;
+    const titleKeywords = parseTitleKeywords(qs("#fltTitle")?.value || "");
     const onlyNew = !!qs("#onlyNew")?.checked;
 
     const list = state.jobs.filter(j => {
@@ -239,6 +258,11 @@
       const smin = Number(j?.extra?.salary_min || 0);
       const smax = Number(j?.extra?.salary_max || 0);
       if (minSalary && Math.max(smin, smax) < minSalary) return false;
+
+      if (titleKeywords.length) {
+        const title = normalizeText(j?.title || "");
+        if (!titleKeywords.some(k => title.includes(k))) return false;
+      }
 
       if (onlyNew && !state.newIds.has(j.id)) return false;
       return true;
@@ -351,9 +375,11 @@
     const params = new URLSearchParams();
     const cities = expandCities(parseListInput("#cities"));
     const keywords = parseListInput("#keywords");
+    const titleKeywords = parseTitleKeywords(qs("#fltTitle")?.value || "");
 
     if (cities.length) params.set("cities", cities.join(","));
     if (keywords.length) params.set("keywords", keywords.join(","));
+    if (titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
 
     const provider = qs("#fltProvider")?.value || "";
     const remote = qs("#fltRemote")?.value || "any";
@@ -586,24 +612,6 @@
     });
   }
 
-  function setupAutoRefresh() {
-    const chk = qs("#autoRefresh");
-    const sel = qs("#refreshInterval");
-    const update = () => {
-      if (state.autoRefreshTimer) {
-        clearInterval(state.autoRefreshTimer);
-        state.autoRefreshTimer = null;
-      }
-      if (chk && sel && chk.checked) {
-        const seconds = parseInt(sel.value, 10) || 30;
-        state.autoRefreshTimer = setInterval(() => refreshSelected({ silent: true }), seconds * 1000);
-      }
-    };
-    chk?.addEventListener("change", update);
-    sel?.addEventListener("change", update);
-    update();
-  }
-
   function setupDrawer() {
     const close = qs("#closeDrawer");
     const drawer = qs("#drawer");
@@ -622,6 +630,16 @@
         }
       });
     });
+
+    const titleInput = qs("#fltTitle");
+    if (titleInput) {
+      const debouncedReload = debounce(() => loadJobsFromDB({ silent: true }), 300);
+      titleInput.addEventListener("input", () => {
+        state.page = 1;
+        renderJobs();
+        debouncedReload();
+      });
+    }
   }
 
   function extractCities(companies) {
@@ -668,7 +686,6 @@
     renderJobs();
     setupSort();
     setupPaging();
-    setupAutoRefresh();
     setupDrawer();
     setupFilters();
 
