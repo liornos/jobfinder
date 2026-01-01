@@ -111,6 +111,8 @@
     page: 1,
     pageSize: 50,
     sortSpec: [{ key: "score", dir: "desc" }],
+    jobsReqId: 0,
+    jobsAbort: null,
     lastScanIds: new Set(loadLocal("lastScanIds", [])),
     newIds: new Set(),
     initialized: false,
@@ -406,8 +408,13 @@
     const params = buildJobsQuery();
     const url = `/jobs?${params.toString()}`;
 
+    const reqId = ++state.jobsReqId;
+    try { state.jobsAbort?.abort?.(); } catch {}
+    state.jobsAbort = new AbortController();
+
     try {
-      const { ok, data } = await fetchJSON(url);
+      const { ok, data } = await fetchJSON(url, { signal: state.jobsAbort.signal });
+      if (reqId !== state.jobsReqId) return;
       if (!ok) {
         const msg = (data && data.error) ? String(data.error) : "Failed to load jobs";
         setScanMsg(msg, "error");
@@ -430,6 +437,9 @@
       renderJobs();
       if (!silent) setScanMsg(`Loaded ${state.jobs.length} jobs`, "ok");
     } catch (e) {
+      if (reqId !== state.jobsReqId) return;
+      if (e?.name === "AbortError") return;
+      if (state.jobsAbort?.signal?.aborted) return;
       err("Jobs fetch error", e);
       if (!silent) setScanMsg("Failed to load jobs", "error");
     }
