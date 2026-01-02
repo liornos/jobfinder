@@ -9,6 +9,7 @@ import logging
 import os
 import ssl
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
@@ -157,12 +158,42 @@ def _import_provider(provider: str):
     return None
 
 
+def _log_provider_fetch(
+    *,
+    status: str,
+    provider: str,
+    org: str,
+    elapsed_ms: int,
+    jobs: Optional[int] = None,
+    error: Optional[str] = None,
+    exc_info: Optional[bool] = None,
+) -> None:
+    extra = {
+        "provider": provider,
+        "org": org,
+        "elapsed_ms": elapsed_ms,
+        "status": status,
+    }
+    if jobs is not None:
+        extra["jobs"] = jobs
+    if error:
+        extra["error"] = error
+    msg = f"provider_fetch {status}"
+    if status == "fail":
+        log.warning(msg, exc_info=exc_info, extra=extra)
+    else:
+        log.info(msg, extra=extra)
+
+
 def _call_fetch(
     fetch_fn,
     org: str,
     company: Optional[Dict[str, Any]] = None,
+    *,
+    provider: str,
 ) -> List[Dict[str, Any]]:
     # flexible signature
+    t0 = time.perf_counter()
     attempts: List[Dict[str, Any]] = []
     if company:
         attempts.append({"org": org, "company": company})
@@ -178,20 +209,39 @@ def _call_fetch(
                 kwargs or {"_positional": "org"},
             )
             if kwargs:
-                return list(fetch_fn(**kwargs))
+                jobs = list(fetch_fn(**kwargs))
             else:
-                return list(fetch_fn(org))
+                jobs = list(fetch_fn(org))
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            _log_provider_fetch(
+                status="ok",
+                provider=provider,
+                org=org,
+                elapsed_ms=elapsed_ms,
+                jobs=len(jobs),
+            )
+            return jobs
         except TypeError:
             continue
         except Exception as e:
-            log.warning(
-                "fetch_jobs failed for org=%s using %s: %s",
-                org,
-                kwargs,
-                e,
+            elapsed_ms = int((time.perf_counter() - t0) * 1000)
+            _log_provider_fetch(
+                status="fail",
+                provider=provider,
+                org=org,
+                elapsed_ms=elapsed_ms,
+                error=str(e),
                 exc_info=True,
             )
-            break
+            return []
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    _log_provider_fetch(
+        status="skipped",
+        provider=provider,
+        org=org,
+        elapsed_ms=elapsed_ms,
+        error="no_compatible_signature",
+    )
     return []
 
 
@@ -519,7 +569,17 @@ def _process_company_jobs(
         return None, []
 
     fetch = fetchers.get(cprov)
-    raw_jobs = _call_fetch(fetch, org, company=company) if callable(fetch) else []
+    if callable(fetch):
+        raw_jobs = _call_fetch(fetch, org, company=company, provider=cprov)
+    else:
+        _log_provider_fetch(
+            status="skipped",
+            provider=cprov,
+            org=org,
+            elapsed_ms=0,
+            error="missing_fetcher",
+        )
+        raw_jobs = []
 
     company_jobs: List[Dict[str, Any]] = []
     for rj in raw_jobs or []:
