@@ -6,6 +6,19 @@ import os
 import sys
 
 
+class _ContextDefaultsFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "provider"):
+            record.provider = "-"
+        if not hasattr(record, "org"):
+            record.org = "-"
+        if not hasattr(record, "elapsed_ms"):
+            record.elapsed_ms = "-"
+        if not hasattr(record, "status"):
+            record.status = "-"
+        return True
+
+
 def setup_logging(default_level: str | None = None) -> None:
     """
     Console logging. Controlled by env LOG_LEVEL (DEBUG/INFO/WARN/ERROR).
@@ -18,9 +31,17 @@ def setup_logging(default_level: str | None = None) -> None:
     if not root.handlers:
         h = logging.StreamHandler(stream=sys.stdout)
         fmt = logging.Formatter(
-            fmt="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            fmt=(
+                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s | "
+                "provider=%(provider)s org=%(org)s elapsed_ms=%(elapsed_ms)s status=%(status)s"
+            ),
             datefmt="%H:%M:%S",
         )
         h.setFormatter(fmt)
+        h.addFilter(_ContextDefaultsFilter())
         root.addHandler(h)
+    else:
+        for h in root.handlers:
+            if not any(isinstance(f, _ContextDefaultsFilter) for f in h.filters):
+                h.addFilter(_ContextDefaultsFilter())
     root.setLevel(level)
