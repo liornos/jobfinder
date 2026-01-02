@@ -313,15 +313,25 @@ def _city_match(location: str, cities: Iterable[Any]) -> bool:
 
 
 def _dedupe(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    seen = set()
+    seen: Dict[str, Dict[str, Any]] = {}
+    order: List[str] = []
     out: List[Dict[str, Any]] = []
     for j in jobs:
         key = j.get("id") or j.get("url")
-        if key and key in seen:
+        if not key:
+            out.append(j)
             continue
-        if key:
-            seen.add(key)
-        out.append(j)
+        if key not in seen:
+            seen[key] = j
+            order.append(key)
+            continue
+        existing = seen[key]
+        curr_dt = filtering._parse_created_at(j.get("created_at"))
+        prev_dt = filtering._parse_created_at(existing.get("created_at"))
+        if (curr_dt and prev_dt and curr_dt > prev_dt) or (curr_dt and not prev_dt):
+            seen[key] = j
+    for key in order:
+        out.append(seen[key])
     return out
 
 
