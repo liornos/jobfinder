@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone, timedelta
 from typing import List
 
 import pytest
@@ -65,6 +66,10 @@ def test_discover_requires_api_key(monkeypatch):
 
 
 def test_scan_normalizes_and_dedupes(monkeypatch, provider_stub):
+    now = datetime.now(timezone.utc)
+    created_at_1 = (now - timedelta(days=3)).replace(microsecond=0).isoformat()
+    created_at_2 = (now - timedelta(days=2)).replace(microsecond=0).isoformat()
+    created_at_3 = (now - timedelta(days=1)).replace(microsecond=0).isoformat()
     jobs_by_provider = {
         "greenhouse": {
             "acme": [
@@ -73,7 +78,7 @@ def test_scan_normalizes_and_dedupes(monkeypatch, provider_stub):
                     "title": "Data Engineer",
                     "location": "New York, NY",
                     "url": "https://example.com/1",
-                    "created_at": "2025-01-01T00:00:00Z",
+                    "created_at": created_at_1,
                     "remote": False,
                 },
                 {
@@ -81,7 +86,7 @@ def test_scan_normalizes_and_dedupes(monkeypatch, provider_stub):
                     "title": "Data Engineer (dup)",
                     "location": "New York, NY",
                     "url": "https://example.com/1",
-                    "created_at": "2025-01-02T00:00:00Z",
+                    "created_at": created_at_2,
                     "remote": False,
                 },
                 {
@@ -89,7 +94,7 @@ def test_scan_normalizes_and_dedupes(monkeypatch, provider_stub):
                     "title": "Backend Engineer",
                     "location": "New York, NY",
                     "url": "https://example.com/2",
-                    "created_at": "2025-01-03T00:00:00Z",
+                    "created_at": created_at_3,
                     "remote": True,
                 },
             ]
