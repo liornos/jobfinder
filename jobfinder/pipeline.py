@@ -101,6 +101,61 @@ def _expand_city_aliases(cities: List[str]) -> List[str]:
     return expanded
 
 
+def _env_int(
+    name: str,
+    default: int,
+    *,
+    min_val: Optional[int] = None,
+    max_val: Optional[int] = None,
+) -> int:
+    raw = os.getenv(name)
+    try:
+        val = int(raw) if raw is not None else default
+    except (TypeError, ValueError):
+        val = default
+    if min_val is not None:
+        val = max(min_val, val)
+    if max_val is not None:
+        val = min(max_val, val)
+    return val
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _sanitize_query_term(term: str) -> str:
+    return (term or "").replace('"', "").strip()
+
+
+def _build_city_queries(
+    cities: List[str], *, combine: bool
+) -> List[Tuple[str, Optional[str]]]:
+    cleaned: List[str] = []
+    seen = set()
+    for c in cities or []:
+        c_norm = _sanitize_query_term(c)
+        if not c_norm:
+            continue
+        key = c_norm.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(c_norm)
+
+    if not cleaned:
+        return [("", None)]
+
+    if combine and len(cleaned) > 1:
+        joined = " OR ".join(f'"{c}"' for c in cleaned)
+        return [(f"({joined})", None)]
+
+    return [(f'"{c}"', c) for c in cleaned]
+
+
 def _http_get_json(
     url: str, params: Optional[Dict[str, Any]] = None, timeout: float = 25.0
 ) -> Any:
@@ -491,20 +546,32 @@ def discover(
         sources = list(_PROVIDER_HOST.keys())
     cities_expanded = _expand_city_aliases(_as_str_list(cities))
     q_keywords = " ".join([k for k in (keywords or []) if _norm(k)]) if keywords else ""
+    num_results = _env_int("SERPAPI_NUM_RESULTS", 100, min_val=10, max_val=100)
+    no_cache = _env_bool("SERPAPI_NO_CACHE", False)
+    city_mode = (os.getenv("SERPAPI_CITY_MODE") or "or").strip().lower()
+    combine_cities = city_mode != "split"
+    city_queries = _build_city_queries(cities_expanded, combine=combine_cities)
     results: Dict[Tuple[str, str], Dict[str, Any]] = {}
     for provider in sources:
         host = _PROVIDER_HOST.get(provider)
         if not host:
             continue
-        for city in cities_expanded or [""]:
-            q = f'site:{host} "{city}" {q_keywords}'.strip()
+        for city_clause, city_value in city_queries:
+            q_parts = [f"site:{host}"]
+            if city_clause:
+                q_parts.append(city_clause)
+            if q_keywords:
+                q_parts.append(q_keywords)
+            q = " ".join(q_parts).strip()
             params = {
                 "engine": "google",
                 "q": q,
-                "num": 10,
+                "num": num_results,
                 "hl": "en",
                 "api_key": api_key,
             }
+            if no_cache:
+                params["no_cache"] = "true"
             data = _http_get_json("https://serpapi.com/search.json", params=params)
             for item in data.get("organic_results") or []:
                 link = item.get("link") or ""
@@ -522,7 +589,7 @@ def discover(
                     "org": org,
                     "provider": provider,
                     "careers_url": careers_url,
-                    "city": city,
+                    "city": city_value,
                 }
                 if len(results) >= limit:
                     break

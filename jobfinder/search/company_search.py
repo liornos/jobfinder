@@ -39,7 +39,62 @@ def _normalize_name_from_org(org: str) -> str:
     return " ".join(w.capitalize() if w else w for w in pretty.split())
 
 
-async def _serpapi_search(query: str, api_key: str, num: int = 10) -> List[Dict]:
+def _env_int(
+    name: str,
+    default: int,
+    *,
+    min_val: int | None = None,
+    max_val: int | None = None,
+) -> int:
+    raw = os.getenv(name)
+    try:
+        val = int(raw) if raw is not None else default
+    except (TypeError, ValueError):
+        val = default
+    if min_val is not None:
+        val = max(min_val, val)
+    if max_val is not None:
+        val = min(max_val, val)
+    return val
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _sanitize_query_term(term: str) -> str:
+    return (term or "").replace('"', "").strip()
+
+
+def _build_city_clauses(cities: List[str], *, combine: bool) -> List[str]:
+    cleaned: List[str] = []
+    seen = set()
+    for c in cities or []:
+        c_norm = _sanitize_query_term(c)
+        if not c_norm:
+            continue
+        key = c_norm.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(c_norm)
+
+    if not cleaned:
+        return [""]
+
+    if combine and len(cleaned) > 1:
+        joined = " OR ".join(f'"{c}"' for c in cleaned)
+        return [f"({joined})"]
+
+    return [f'"{c}"' for c in cleaned]
+
+
+async def _serpapi_search(
+    query: str, api_key: str, num: int = 10, *, no_cache: bool = False
+) -> List[Dict]:
     url = "https://serpapi.com/search.json"
     params: dict[str, str | int] = {
         "engine": "google",
@@ -47,6 +102,8 @@ async def _serpapi_search(query: str, api_key: str, num: int = 10) -> List[Dict]
         "num": num,
         "api_key": api_key,
     }
+    if no_cache:
+        params["no_cache"] = "true"
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(url, params=params)
         r.raise_for_status()
@@ -87,17 +144,32 @@ async def discover_companies(
         "greenhouse",
         "lever",
     }
+    city_mode = (os.getenv("SERPAPI_CITY_MODE") or "or").strip().lower()
+    combine_cities = city_mode != "split"
+    city_clauses = _build_city_clauses(cities or [], combine=combine_cities)
     queries: List[str] = []
-    kws = " ".join(keywords) if keywords else ""
-    for city in cities or [""]:
+    kws = " ".join([str(k).strip() for k in (keywords or []) if str(k).strip()])
+    for clause in city_clauses:
         if "greenhouse" in wanted:
-            queries.append(f'site:boards.greenhouse.io "{city}" {kws}'.strip())
+            parts = ["site:boards.greenhouse.io"]
+            if clause:
+                parts.append(clause)
+            if kws:
+                parts.append(kws)
+            queries.append(" ".join(parts).strip())
         if "lever" in wanted:
-            queries.append(f'site:jobs.lever.co "{city}" {kws}'.strip())
+            parts = ["site:jobs.lever.co"]
+            if clause:
+                parts.append(clause)
+            if kws:
+                parts.append(kws)
+            queries.append(" ".join(parts).strip())
     results: List[Dict] = []
-    per_q = max(10, min(50, limit))
+    per_q_default = max(10, min(100, limit))
+    per_q = _env_int("SERPAPI_NUM_RESULTS", per_q_default, min_val=10, max_val=100)
+    no_cache = _env_bool("SERPAPI_NO_CACHE", False)
     for q in queries:
-        results.extend(await _serpapi_search(q, api_key, num=per_q))
+        results.extend(await _serpapi_search(q, api_key, num=per_q, no_cache=no_cache))
     gh, lv = _extract_orgs(results)
     uniq: dict[tuple[str, str], Company] = {}
     for org in gh:
