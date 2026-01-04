@@ -47,16 +47,24 @@ Without a SerpAPI key, the UI still works using the bundled seed `static/compani
 - `SERPAPI_API_KEY` - required **only** for `/discover` or `jobfinder discover`
 - `SERPAPI_NUM_RESULTS` - optional SerpAPI results per query (10-100, default 100)
 - `SERPAPI_CITY_MODE` - optional: `or` (default) combines cities; `split` runs per city
+- `SERPAPI_PROVIDER_MODE` - optional: `or` (default) combines providers into one query; `split` runs per provider
 - `SERPAPI_NO_CACHE` - optional: set `true` to bypass SerpAPI cache (costs credits)
+- `SERPAPI_CACHE_TTL_SECONDS` - optional local cache TTL for SerpAPI responses (default 86400; set 0 to disable)
+- `SERPAPI_CACHE_DIR` - optional local cache directory (default `.serpapi_cache` in cwd)
 - `HOST`, `PORT` - optional Flask bind (defaults to `0.0.0.0:8000`)
 - `.env` supported
+
+Local SerpAPI cache is enabled by default unless `SERPAPI_CACHE_TTL_SECONDS=0` or `SERPAPI_NO_CACHE=true`.
 
 Example `.env`:
 ```dotenv
 SERPAPI_API_KEY=YOUR_REAL_KEY
 SERPAPI_NUM_RESULTS=100
 SERPAPI_CITY_MODE=or
+SERPAPI_PROVIDER_MODE=or
 SERPAPI_NO_CACHE=false
+SERPAPI_CACHE_TTL_SECONDS=86400
+# SERPAPI_CACHE_DIR=.serpapi_cache
 HOST=0.0.0.0
 PORT=8000
 ```

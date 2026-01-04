@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, List, Mapping
 
 import pytest
 
@@ -16,6 +16,7 @@ def serpapi_env(monkeypatch):
     Ensure SerpAPI is considered configured for discover() calls.
     """
     monkeypatch.setenv("SERPAPI_API_KEY", "test-key")
+    monkeypatch.setenv("SERPAPI_CACHE_TTL_SECONDS", "0")
     return "test-key"
 
 
@@ -30,9 +31,14 @@ def serpapi_stub(monkeypatch):
             url: str, params: Dict[str, Any] | None = None, timeout: float = 25.0
         ):
             query = (params or {}).get("q", "")
+            combined: List[Dict[str, Any]] = []
             for host, payload in payloads.items():
                 if host in query:
-                    return payload
+                    results = payload.get("organic_results") if payload else None
+                    if isinstance(results, list):
+                        combined.extend(results)
+            if combined:
+                return {"organic_results": combined}
             return {"organic_results": []}
 
         monkeypatch.setattr(pipeline, "_http_get_json", fake_http)
