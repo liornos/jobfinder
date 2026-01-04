@@ -59,6 +59,37 @@ def test_discover_stops_after_limit(monkeypatch, serpapi_env):
     assert len(calls) == 1  # additional provider/city loops short-circuit after limit
 
 
+def test_discover_combines_providers_with_or(monkeypatch, serpapi_env):
+    calls: List[dict] = []
+
+    def fake_http(url: str, params=None, timeout: float = 25.0):
+        calls.append(params or {})
+        return {
+            "organic_results": [
+                {"link": "https://boards.greenhouse.io/acme/jobs/1"},
+                {"link": "https://jobs.lever.co/contoso/2"},
+            ]
+        }
+
+    monkeypatch.setattr(pipeline, "_http_get_json", fake_http)
+    monkeypatch.setenv("SERPAPI_PROVIDER_MODE", "or")
+
+    companies = pipeline.discover(
+        cities=["Tel Aviv"],
+        keywords=["python"],
+        sources=["greenhouse", "lever"],
+        limit=10,
+    )
+
+    assert len(calls) == 1
+    q = calls[0].get("q", "")
+    assert "site:boards.greenhouse.io" in q
+    assert "site:jobs.lever.co" in q
+    ids = {(c["provider"], c["org"]) for c in companies}
+    assert ("greenhouse", "acme") in ids
+    assert ("lever", "contoso") in ids
+
+
 def test_discover_requires_api_key(monkeypatch):
     monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
     with pytest.raises(RuntimeError):

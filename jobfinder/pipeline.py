@@ -19,6 +19,8 @@ from urllib.request import Request, urlopen
 from sqlalchemy import select
 
 from . import db, filtering
+from .serpapi_cache import read_cache as _serpapi_cache_read
+from .serpapi_cache import write_cache as _serpapi_cache_write
 from .filtering import apply_filters
 from .models import Job as JobModel
 
@@ -154,6 +156,46 @@ def _build_city_queries(
         return [(f"({joined})", None)]
 
     return [(f'"{c}"', c) for c in cleaned]
+
+
+def _build_provider_queries(
+    providers: List[str], *, combine: bool
+) -> List[Tuple[Optional[str], str]]:
+    cleaned: List[str] = []
+    seen = set()
+    for p in providers or []:
+        p_norm = (p or "").strip().lower()
+        if not p_norm:
+            continue
+        if p_norm in seen:
+            continue
+        if p_norm not in _PROVIDER_HOST:
+            continue
+        seen.add(p_norm)
+        cleaned.append(p_norm)
+
+    if not cleaned:
+        return []
+
+    if combine and len(cleaned) > 1:
+        joined = " OR ".join(f"site:{_PROVIDER_HOST[p]}" for p in cleaned)
+        return [(None, f"({joined})")]
+
+    return [(p, f"site:{_PROVIDER_HOST[p]}") for p in cleaned]
+
+
+def _provider_from_url(url: str) -> Optional[str]:
+    try:
+        host = (urlparse(url).netloc or "").lower()
+    except Exception:
+        return None
+    if not host:
+        return None
+    for provider, base in _PROVIDER_HOST.items():
+        base_norm = base.lower()
+        if host == base_norm or host.endswith("." + base_norm):
+            return provider
+    return None
 
 
 def _http_get_json(
@@ -551,13 +593,18 @@ def discover(
     city_mode = (os.getenv("SERPAPI_CITY_MODE") or "or").strip().lower()
     combine_cities = city_mode != "split"
     city_queries = _build_city_queries(cities_expanded, combine=combine_cities)
+    provider_mode = (os.getenv("SERPAPI_PROVIDER_MODE") or "or").strip().lower()
+    combine_providers = provider_mode == "or"
+    provider_queries = _build_provider_queries(
+        list(sources or []), combine=combine_providers
+    )
     results: Dict[Tuple[str, str], Dict[str, Any]] = {}
-    for provider in sources:
-        host = _PROVIDER_HOST.get(provider)
-        if not host:
-            continue
+    for provider_hint, provider_clause in provider_queries:
+        host_hint = _PROVIDER_HOST.get(provider_hint) if provider_hint else None
         for city_clause, city_value in city_queries:
-            q_parts = [f"site:{host}"]
+            q_parts = []
+            if provider_clause:
+                q_parts.append(provider_clause)
             if city_clause:
                 q_parts.append(city_clause)
             if q_keywords:
@@ -572,10 +619,28 @@ def discover(
             }
             if no_cache:
                 params["no_cache"] = "true"
-            data = _http_get_json("https://serpapi.com/search.json", params=params)
+            data = None
+            if not no_cache:
+                data = _serpapi_cache_read(
+                    "https://serpapi.com/search.json", params=params
+                )
+            if data is None:
+                data = _http_get_json("https://serpapi.com/search.json", params=params)
+                if not no_cache:
+                    _serpapi_cache_write(
+                        "https://serpapi.com/search.json", params=params, payload=data
+                    )
             for item in data.get("organic_results") or []:
                 link = item.get("link") or ""
-                if not link or host not in link:
+                if not link:
+                    continue
+                provider = provider_hint or _provider_from_url(link)
+                if not provider:
+                    continue
+                host = _PROVIDER_HOST.get(provider)
+                if not host:
+                    continue
+                if host_hint and host_hint not in link:
                     continue
                 org = _extract_org_from_url(provider, link)
                 if not org:

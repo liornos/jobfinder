@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from typing import Iterable, List, Dict, Tuple
 from urllib.parse import urlparse, unquote
 import httpx
+from ..serpapi_cache import read_cache as _serpapi_cache_read
+from ..serpapi_cache import write_cache as _serpapi_cache_write
 from ..models import Company
 
 
@@ -92,6 +94,24 @@ def _build_city_clauses(cities: List[str], *, combine: bool) -> List[str]:
     return [f'"{c}"' for c in cleaned]
 
 
+def _provider_sites(wanted: set[str]) -> List[str]:
+    sites: List[str] = []
+    if "greenhouse" in wanted:
+        sites.append("site:boards.greenhouse.io")
+    if "lever" in wanted:
+        sites.append("site:jobs.lever.co")
+    return sites
+
+
+def _build_provider_clauses(sites: List[str], *, combine: bool) -> List[str]:
+    if not sites:
+        return []
+    if combine and len(sites) > 1:
+        joined = " OR ".join(sites)
+        return [f"({joined})"]
+    return sites
+
+
 async def _serpapi_search(
     query: str, api_key: str, num: int = 10, *, no_cache: bool = False
 ) -> List[Dict]:
@@ -104,10 +124,16 @@ async def _serpapi_search(
     }
     if no_cache:
         params["no_cache"] = "true"
+    if not no_cache:
+        cached = _serpapi_cache_read(url, params)
+        if cached is not None:
+            return cached.get("organic_results", [])
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(url, params=params)
         r.raise_for_status()
         data = r.json() or {}
+        if not no_cache and isinstance(data, dict):
+            _serpapi_cache_write(url, params, payload=data)
         return data.get("organic_results", [])
 
 
@@ -146,21 +172,19 @@ async def discover_companies(
     }
     city_mode = (os.getenv("SERPAPI_CITY_MODE") or "or").strip().lower()
     combine_cities = city_mode != "split"
+    provider_mode = (os.getenv("SERPAPI_PROVIDER_MODE") or "or").strip().lower()
+    combine_providers = provider_mode == "or"
     city_clauses = _build_city_clauses(cities or [], combine=combine_cities)
+    provider_clauses = _build_provider_clauses(
+        _provider_sites(wanted), combine=combine_providers
+    )
     queries: List[str] = []
     kws = " ".join([str(k).strip() for k in (keywords or []) if str(k).strip()])
-    for clause in city_clauses:
-        if "greenhouse" in wanted:
-            parts = ["site:boards.greenhouse.io"]
-            if clause:
-                parts.append(clause)
-            if kws:
-                parts.append(kws)
-            queries.append(" ".join(parts).strip())
-        if "lever" in wanted:
-            parts = ["site:jobs.lever.co"]
-            if clause:
-                parts.append(clause)
+    for city_clause in city_clauses:
+        for provider_clause in provider_clauses:
+            parts = [provider_clause] if provider_clause else []
+            if city_clause:
+                parts.append(city_clause)
             if kws:
                 parts.append(kws)
             queries.append(" ".join(parts).strip())
