@@ -386,6 +386,7 @@ def job_to_dict(row: Job) -> Dict[str, Any]:
         "job_key": row.job_key,
         "title": row.title,
         "company": row.company_name,
+        "company_city": row.company.city if row.company else None,
         "provider": row.provider,
         "org": row.org,
         "location": row.location,

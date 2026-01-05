@@ -15,6 +15,25 @@ def normalize(s: str) -> str:
     return re.sub(r"\s+", " ", s.strip().lower())
 
 
+REMOTE_ONLY_TOKENS = {
+    "remote",
+    "remotely",
+    "anywhere",
+    "wfh",
+    "work",
+    "from",
+    "home",
+    "homebased",
+    "based",
+    "global",
+    "worldwide",
+    "international",
+    "only",
+    "telecommute",
+    "telecommuting",
+}
+
+
 def _parse_created_at(val: Any) -> Optional[datetime]:
     """
     Best-effort parser for provider created_at values (ISO string, Z suffix, or epoch ms).
@@ -168,7 +187,7 @@ def apply_filters(
     )
     min_score = filters.get("min_score")
     max_age_days = filters.get("max_age_days")
-    # NEW: city filter (substring match, case-insensitive). Remote jobs are allowed regardless of city.
+    # City filter (substring match, case-insensitive). Match job location or company city.
     cities = [normalize(c) for c in (filters.get("cities") or []) if c]
 
     for r in rows:
@@ -196,13 +215,25 @@ def apply_filters(
                     if bool(r.get("remote")):
                         continue
 
-        # City filter: allow remote jobs regardless of city.
+        # City filter: match explicit locations; only fallback to company city for remote/blank.
         if cities:
             locn = normalize(str(r.get("location") or ""))
-            wm = ((r.get("extra") or {}).get("work_mode") or "").lower()
-            is_remoteish = wm == "remote" or bool(r.get("remote")) or "remote" in locn
-            if not is_remoteish and not any(c in locn for c in cities):
+            company_city = normalize(str(r.get("company_city") or ""))
+            locn_tokens = [t for t in re.split(r"[^a-z0-9]+", locn) if t]
+            remote_only = not locn_tokens or all(
+                t in REMOTE_ONLY_TOKENS for t in locn_tokens
+            )
+
+            if any(c in locn for c in cities):
+                pass
+            elif locn and not remote_only:
                 continue
+            else:
+                wm = ((r.get("extra") or {}).get("work_mode") or "").lower()
+                remote_flag = bool(r.get("remote"))
+                is_remoteish = remote_only or not locn or wm == "remote" or remote_flag
+                if not (is_remoteish and any(c in company_city for c in cities)):
+                    continue
 
         if min_score is not None and (r.get("score") or 0) < int(min_score):
             continue

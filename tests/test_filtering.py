@@ -36,6 +36,7 @@ def test_apply_filters_remote_and_city_logic():
             "provider": "greenhouse",
             "remote": True,
             "location": "Anywhere",
+            "company_city": "Tel Aviv",
             "score": 10,
             "created_at": now.isoformat(),
             "extra": {"work_mode": "remote"},
@@ -69,6 +70,48 @@ def test_apply_filters_remote_and_city_logic():
     filtered = filtering.apply_filters(rows, filters)
 
     assert [r["id"] for r in filtered] == ["r1"]
+
+
+def test_apply_filters_city_blocks_explicit_other_locations_even_if_remote():
+    now = datetime.now(timezone.utc)
+    rows = [
+        {
+            "id": "ny1",
+            "provider": "greenhouse",
+            "remote": True,
+            "location": "New York",
+            "company_city": "Tel Aviv",
+            "score": 10,
+            "created_at": now.isoformat(),
+            "extra": {"work_mode": "remote"},
+        }
+    ]
+
+    filters = {"cities": ["tel aviv"], "min_score": 1}
+    filtered = filtering.apply_filters(rows, filters)
+
+    assert [r["id"] for r in filtered] == []
+
+
+def test_apply_filters_city_blocks_remote_with_region_suffix():
+    now = datetime.now(timezone.utc)
+    rows = [
+        {
+            "id": "r1",
+            "provider": "greenhouse",
+            "remote": True,
+            "location": "Remote, sg",
+            "company_city": "Tel Aviv",
+            "score": 10,
+            "created_at": now.isoformat(),
+            "extra": {"work_mode": "remote"},
+        }
+    ]
+
+    filters = {"cities": ["tel aviv"], "min_score": 1}
+    filtered = filtering.apply_filters(rows, filters)
+
+    assert [r["id"] for r in filtered] == []
 
 
 def test_apply_filters_respects_age_and_score():
