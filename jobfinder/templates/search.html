@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>JobFinder - Quick Search</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 text-slate-900">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-center gap-4">
+        <img src="/static/jobfinder-image.png" alt="JobFinder logo" class="h-16 w-20 rounded-2xl shadow-md object-cover">
+        <div>
+          <h1 class="text-2xl font-bold">JobFinder Quick Search</h1>
+          <p class="text-sm text-slate-600">Filter jobs already stored in the database</p>
+        </div>
+      </div>
+      <div class="flex justify-center sm:justify-end">
+        <a href="/"
+           class="rounded-xl px-4 py-2 border border-emerald-100 text-emerald-700 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+          Full workflow
+        </a>
+      </div>
+    </header>
+
+    <section class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100">
+      <form id="searchForm" class="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
+        <div>
+          <label for="cityInput" class="block text-sm font-medium">City</label>
+          <input id="cityInput" type="text"
+                 class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                 placeholder="Tel Aviv, Herzliya">
+        </div>
+        <div>
+          <label for="titleInput" class="block text-sm font-medium">Job title search</label>
+          <input id="titleInput" type="text"
+                 class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                 placeholder="software engineer, qa, automation">
+        </div>
+        <button id="searchBtn" type="submit"
+                class="w-full rounded-2xl px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white flex items-center justify-center gap-2
+                       hover:shadow-lg hover:shadow-cyan-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+                aria-live="polite">
+          <span id="searchBtnText">Search</span>
+          <span id="searchSpinner"
+                class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+        </button>
+      </form>
+      <p class="text-xs text-gray-500 mt-2">
+        This page uses existing jobs in the database. To refresh data, open the full workflow page.
+      </p>
+      <p id="statusMsg" class="text-sm font-semibold mt-2" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="mt-6 p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold">Results</h2>
+        <div class="text-sm text-slate-600"><span id="resultsCount">0</span> jobs</div>
+      </div>
+
+      <div class="overflow-auto rounded-xl border mt-3">
+        <table class="min-w-full text-sm" id="resultsTable">
+          <thead class="bg-gray-100 sticky top-0">
+            <tr>
+              <th class="p-2 text-left">Title</th>
+              <th class="p-2 text-left">Company</th>
+              <th class="p-2 text-left">Location</th>
+              <th class="p-2 text-left">Provider</th>
+              <th class="p-2 text-left">Date</th>
+              <th class="p-2 text-left">Link</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+
+      <p class="text-xs text-gray-500 mt-2">Tip: click a row to open the job link in a new tab.</p>
+    </section>
+  </div>
+<script src="/static/search.js?v=1" defer></script>
+</body>
+</html>

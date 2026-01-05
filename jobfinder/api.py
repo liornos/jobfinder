@@ -256,6 +256,10 @@ def create_app() -> Flask:
     def index() -> str:
         return render_template("index.html")
 
+    @app.get("/search")
+    def search() -> str:
+        return render_template("search.html")
+
     @app.get("/healthz")
     def healthz() -> Any:
         return jsonify({"ok": True})
