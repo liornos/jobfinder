@@ -17,6 +17,7 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from . import db, filtering
 from .serpapi_cache import read_cache as _serpapi_cache_read
@@ -960,7 +961,11 @@ def query_jobs(
         return []
 
     with db.session_scope(db_url) as session:
-        base_stmt = select(db.Job).order_by(db.Job.created_at.desc(), db.Job.id.desc())
+        base_stmt = (
+            select(db.Job)
+            .options(selectinload(db.Job.company))
+            .order_by(db.Job.created_at.desc(), db.Job.id.desc())
+        )
         if only_active:
             base_stmt = base_stmt.where(db.Job.is_active.is_(True))
         if prov_filter:

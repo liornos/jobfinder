@@ -235,18 +235,8 @@
     el.classList.remove("hidden");
   }
 
-  function matchRemote(job, sel) {
-    const wm = (job?.extra?.work_mode || "").toLowerCase();
-    if (sel === "any") return true;
-    if (sel === "hybrid") return wm === "hybrid";
-    if (sel === "true")  return wm ? wm === "remote" : Boolean(job.remote) === true;
-    if (sel === "false") return wm ? wm === "onsite" : Boolean(job.remote) === false;
-    return true;
-  }
-
   function computeFilteredJobs() {
     const prov = qs("#fltProvider")?.value || "";
-    const remoteSel = qs("#fltRemote")?.value || "any";
     const minScore = parseInt(qs("#fltScore")?.value || "0", 10) || 0;
     const minSalary = parseInt(qs("#fltSalary")?.value || "0", 10) || 0;
     const titleKeywords = parseTitleKeywords(qs("#fltTitle")?.value || "");
@@ -254,7 +244,6 @@
 
     const list = state.jobs.filter(j => {
       if (prov && (j.provider || "") !== prov) return false;
-      if (!matchRemote(j, remoteSel)) return false;
       if ((j.score || 0) < minScore) return false;
 
       const smin = Number(j?.extra?.salary_min || 0);
@@ -384,12 +373,10 @@
     if (titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
 
     const provider = qs("#fltProvider")?.value || "";
-    const remote = qs("#fltRemote")?.value || "any";
     const minScore = parseInt(qs("#fltScore")?.value || "0", 10) || 0;
     const maxAge = qs("#fltAge")?.value;
 
     if (provider) params.set("provider", provider);
-    if (remote) params.set("remote", remote);
     if (minScore) params.set("min_score", String(minScore));
     if (maxAge) params.set("max_age_days", maxAge);
 
@@ -630,7 +617,7 @@
   }
 
   function setupFilters() {
-    ["#fltProvider", "#fltRemote", "#fltScore", "#fltAge", "#fltSalary", "#onlyNew"].forEach(id => {
+    ["#fltProvider", "#fltScore", "#fltAge", "#fltSalary", "#onlyNew"].forEach(id => {
       qs(id)?.addEventListener("change", () => {
         state.page = 1;
         if (id === "#onlyNew") {
