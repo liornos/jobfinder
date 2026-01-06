@@ -212,11 +212,9 @@
     const params = new URLSearchParams();
     const cities = getSelectedCities();
     const titleKeywords = parseTitleKeywords(qs("#titleInput")?.value || "");
-    const lastWeekOnly = !!qs("#lastWeekOnly")?.checked;
 
     if (cities.length) params.set("cities", cities.join(","));
     if (titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
-    if (lastWeekOnly) params.set("max_age_days", "7");
     params.set("limit", "200");
 
     return params;
@@ -309,7 +307,6 @@
     const cityList = params.getAll("cities");
     const city = cityList.length ? cityList : params.get("city") || params.get("cities");
     const title = params.get("title") || params.get("title_keywords");
-    const maxAge = params.get("max_age_days");
 
     if (city) {
       const values = Array.isArray(city) ? city : String(city).split(",");
@@ -322,13 +319,8 @@
       const input = qs("#titleInput");
       if (input) input.value = title;
     }
-    if (maxAge) {
-      const checkbox = qs("#lastWeekOnly");
-      const parsed = parseInt(maxAge, 10);
-      if (checkbox && Number.isFinite(parsed) && parsed <= 7) checkbox.checked = true;
-    }
 
-    if (city || title || maxAge) fetchJobs();
+    if (city || title) fetchJobs();
   }
 
   function init() {
