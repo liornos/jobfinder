@@ -362,9 +362,37 @@
       .filter(Boolean);
   }
 
+  function splitCityValues(values) {
+    const seen = new Set();
+    const out = [];
+    (values || []).forEach((value) => {
+      (value ?? "")
+        .toString()
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .forEach((city) => {
+          const key = city.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push(city);
+        });
+    });
+    return out;
+  }
+
+  function getSelectedCities() {
+    const select = qs("#citiesSelect");
+    if (!select) return [];
+    const values = Array.from(select.selectedOptions || [])
+      .map(opt => opt.value)
+      .filter(Boolean);
+    return splitCityValues(values);
+  }
+
   function buildJobsQuery(limitOverride) {
     const params = new URLSearchParams();
-    const cities = expandCities(parseListInput("#cities"));
+    const cities = expandCities(getSelectedCities());
     const keywords = parseListInput("#keywords");
     const titleKeywords = parseTitleKeywords(qs("#fltTitle")?.value || "");
 
@@ -436,7 +464,7 @@
     setDiscoverMsg("Discovering...", "info");
     log("Discover clicked");
 
-    const cities = expandCities(parseListInput("#cities"));
+    const cities = expandCities(getSelectedCities());
     const keywords = parseListInput("#keywords");
 
     // Keep aligned with backend pipeline._PROVIDER_HOST
@@ -514,7 +542,7 @@
       return;
     }
 
-    const cities = parseListInput("#cities");
+    const cities = expandCities(getSelectedCities());
     const keywords = parseListInput("#keywords");
 
     const body = {
@@ -644,10 +672,26 @@
   }
 
   function setCitiesInput(cities) {
-    if (!cities?.length) return;
-    const input = qs("#cities");
-    if (!input) return;
-    input.value = cities.join(", ");
+    const select = qs("#citiesSelect");
+    if (!select) return;
+    const values = splitCityValues(cities);
+    if (!values.length) return;
+    const options = Array.from(select.options);
+    options.forEach((opt) => {
+      opt.selected = false;
+    });
+
+    const byValue = new Map(options.map((opt) => [opt.value.toLowerCase(), opt]));
+    values.forEach((city) => {
+      const key = city.toLowerCase();
+      let opt = byValue.get(key);
+      if (!opt) {
+        opt = new Option(city, city);
+        select.appendChild(opt);
+        byValue.set(key, opt);
+      }
+      opt.selected = true;
+    });
   }
 
   function selectAllCompanies() {
