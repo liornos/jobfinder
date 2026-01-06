@@ -238,24 +238,16 @@
   function computeFilteredJobs() {
     const prov = qs("#fltProvider")?.value || "";
     const minScore = parseInt(qs("#fltScore")?.value || "0", 10) || 0;
-    const minSalary = parseInt(qs("#fltSalary")?.value || "0", 10) || 0;
     const titleKeywords = parseTitleKeywords(qs("#fltTitle")?.value || "");
-    const onlyNew = !!qs("#onlyNew")?.checked;
 
     const list = state.jobs.filter(j => {
       if (prov && (j.provider || "") !== prov) return false;
       if ((j.score || 0) < minScore) return false;
 
-      const smin = Number(j?.extra?.salary_min || 0);
-      const smax = Number(j?.extra?.salary_max || 0);
-      if (minSalary && Math.max(smin, smax) < minSalary) return false;
-
       if (titleKeywords.length) {
         const title = normalizeText(j?.title || "");
         if (!titleKeywords.some(k => title.includes(k))) return false;
       }
-
-      if (onlyNew && !state.newIds.has(j.id)) return false;
       return true;
     });
 
@@ -362,9 +354,17 @@
       .filter(Boolean);
   }
 
-  function splitCityValues(values) {
+  function isAllValue(value) {
+    const normalized = (value ?? "").toString().trim().toLowerCase();
+    return normalized === CITY_ALL_VALUE
+      || normalized === CITY_ALL_LABEL.toLowerCase()
+      || normalized === "israel all";
+  }
+
+  function parseCityValues(values) {
     const seen = new Set();
     const out = [];
+    let all = false;
     (values || []).forEach((value) => {
       (value ?? "")
         .toString()
@@ -372,22 +372,135 @@
         .map((part) => part.trim())
         .filter(Boolean)
         .forEach((city) => {
+          if (isAllValue(city)) {
+            all = true;
+            return;
+          }
           const key = city.toLowerCase();
           if (seen.has(key)) return;
           seen.add(key);
           out.push(city);
         });
     });
-    return out;
+    return { cities: out, all };
+  }
+
+  function createCityChip(label, onRemove) {
+    const chip = document.createElement("span");
+    chip.className = "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700";
+
+    const text = document.createElement("span");
+    text.textContent = label;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "text-slate-500 hover:text-slate-700";
+    btn.textContent = "x";
+    btn.setAttribute("aria-label", `Remove ${label}`);
+    btn.addEventListener("click", onRemove);
+
+    chip.appendChild(text);
+    chip.appendChild(btn);
+    return chip;
+  }
+
+  function renderSelectedCities() {
+    const container = qs("#citiesSelected");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (cityState.allIsrael) {
+      container.appendChild(createCityChip(CITY_ALL_LABEL, () => clearSelectedCities()));
+      return;
+    }
+
+    if (!cityState.selected.length) {
+      const empty = document.createElement("span");
+      empty.className = "text-xs text-slate-400";
+      empty.textContent = "No cities selected.";
+      container.appendChild(empty);
+      return;
+    }
+
+    cityState.selected.forEach((city) => {
+      container.appendChild(createCityChip(city, () => removeSelectedCity(city)));
+    });
+  }
+
+  function addCitiesToSelection(values) {
+    const parsed = parseCityValues(Array.isArray(values) ? values : [values]);
+    if (parsed.all) {
+      cityState.selected = [];
+      cityState.allIsrael = true;
+      renderSelectedCities();
+      return;
+    }
+
+    if (!parsed.cities.length) return;
+    const existing = new Set(cityState.selected.map((city) => city.toLowerCase()));
+    parsed.cities.forEach((city) => {
+      const key = city.toLowerCase();
+      if (existing.has(key)) return;
+      existing.add(key);
+      cityState.selected.push(city);
+    });
+    cityState.allIsrael = false;
+    renderSelectedCities();
+  }
+
+  function setSelectedCities(values) {
+    const parsed = parseCityValues(Array.isArray(values) ? values : [values]);
+    if (parsed.all) {
+      cityState.selected = [];
+      cityState.allIsrael = true;
+    } else {
+      cityState.selected = parsed.cities;
+      cityState.allIsrael = false;
+    }
+    renderSelectedCities();
+  }
+
+  function clearSelectedCities() {
+    cityState.selected = [];
+    cityState.allIsrael = false;
+    renderSelectedCities();
+  }
+
+  function removeSelectedCity(city) {
+    const key = city.toLowerCase();
+    cityState.selected = cityState.selected.filter((item) => item.toLowerCase() !== key);
+    renderSelectedCities();
   }
 
   function getSelectedCities() {
+    return cityState.allIsrael ? [] : [...cityState.selected];
+  }
+
+  function setupCitySelect() {
     const select = qs("#citiesSelect");
-    if (!select) return [];
-    const values = Array.from(select.selectedOptions || [])
-      .map(opt => opt.value)
-      .filter(Boolean);
-    return splitCityValues(values);
+    if (!select) return;
+
+    const defaults = select.getAttribute("data-default-cities");
+    if (defaults) setSelectedCities(defaults.split(","));
+    else renderSelectedCities();
+
+    select.addEventListener("change", () => {
+      const value = select.value || "";
+      if (!value) return;
+      if (isAllValue(value)) {
+        cityState.selected = [];
+        cityState.allIsrael = true;
+        renderSelectedCities();
+      } else {
+        addCitiesToSelection(value);
+      }
+      select.value = "";
+    });
+
+    qs("#citiesClear")?.addEventListener("click", () => {
+      clearSelectedCities();
+      select.focus();
+    });
   }
 
   function buildJobsQuery(limitOverride) {
@@ -645,14 +758,10 @@
   }
 
   function setupFilters() {
-    ["#fltProvider", "#fltScore", "#fltAge", "#fltSalary", "#onlyNew"].forEach(id => {
+    ["#fltProvider", "#fltScore", "#fltAge"].forEach(id => {
       qs(id)?.addEventListener("change", () => {
         state.page = 1;
-        if (id === "#onlyNew") {
-          renderJobs();
-        } else {
-          loadJobsFromDB({ silent: true });
-        }
+        loadJobsFromDB({ silent: true });
       });
     });
 
@@ -672,26 +781,11 @@
   }
 
   function setCitiesInput(cities) {
-    const select = qs("#citiesSelect");
-    if (!select) return;
-    const values = splitCityValues(cities);
-    if (!values.length) return;
-    const options = Array.from(select.options);
-    options.forEach((opt) => {
-      opt.selected = false;
-    });
-
-    const byValue = new Map(options.map((opt) => [opt.value.toLowerCase(), opt]));
-    values.forEach((city) => {
-      const key = city.toLowerCase();
-      let opt = byValue.get(key);
-      if (!opt) {
-        opt = new Option(city, city);
-        select.appendChild(opt);
-        byValue.set(key, opt);
-      }
-      opt.selected = true;
-    });
+    if (!cities?.length) {
+      clearSelectedCities();
+      return;
+    }
+    setSelectedCities(cities);
   }
 
   function selectAllCompanies() {
