@@ -120,6 +120,14 @@
     scanAbort: null,
   };
 
+  const CITY_ALL_VALUE = "__all__";
+  const CITY_ALL_LABEL = "Israel - All";
+
+  const cityState = {
+    selected: [],
+    allIsrael: false,
+  };
+
   const CITY_ALIASES = {
     // Normalize Ra'anana variants and nearby spellings that often appear in postings.
     "raanana": ["raanana", "ra'anana"],
