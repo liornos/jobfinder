@@ -29,10 +29,29 @@
     <section class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100">
       <form id="searchForm" class="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
         <div>
-          <label for="cityInput" class="block text-sm font-medium">City</label>
-          <input id="cityInput" type="text"
-                 class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
-                 placeholder="Tel Aviv, Herzliya">
+          <label for="citySelect" class="block text-sm font-medium">Cities</label>
+          <select id="citySelect"
+                  class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+            <option value="">Choose a city or district</option>
+            <option value="__all__">Israel - All</option>
+            <optgroup label="Cities">
+              <option value="Tel Aviv">Tel Aviv</option>
+              <option value="Herzliya">Herzliya</option>
+              <option value="Kfar Saba">Kfar Saba</option>
+              <option value="Raanana">Raanana</option>
+              <option value="Petach Tikva">Petach Tikva</option>
+              <option value="Hod Hasharon">Hod Hasharon</option>
+            </optgroup>
+            <optgroup label="Districts">
+              <option value="Tel Aviv, Ramat Gan, Petach Tikva">Tel Aviv District</option>
+              <option value="Herzliya, Kfar Saba, Raanana, Hod Hasharon">Hasharon District</option>
+            </optgroup>
+          </select>
+          <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
+            <span>Selected</span>
+            <button id="cityClear" type="button" class="hover:text-slate-700">Clear</button>
+          </div>
+          <div id="citySelected" class="mt-1 flex flex-wrap gap-2"></div>
         </div>
         <div>
           <label for="titleInput" class="block text-sm font-medium">Job title search</label>
