@@ -823,6 +823,7 @@
     setupPaging();
     setupDrawer();
     setupFilters();
+    setupCitySelect();
 
     qs("#btnDiscover")?.addEventListener("click", discover);
     qs("#btnScanSelected")?.addEventListener("click", () => refreshSelected({ silent: false }));
