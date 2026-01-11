@@ -594,6 +594,167 @@
       "provider": "comeet",
       "careers_url": "https://www.comeet.com/jobs/dreamgroup/99.002",
       "city": "Tel Aviv"
+    },
+    {
+      "name": "connecteam",
+      "org": "connecteam",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/connecteam",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "figma",
+      "org": "figma",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/figma",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "riskified",
+      "org": "riskified",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/riskified",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "welocalize",
+      "org": "welocalize",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/welocalize",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "cye",
+      "org": "cye",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/cye",
+      "city": "Herzliya"
+    },
+    {
+      "name": "lendbuzz",
+      "org": "lendbuzz",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/lendbuzz",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "empathy",
+      "org": "empathy",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/empathy/F8.007",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "oligosecurity",
+      "org": "oligosecurity",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/oligosecurity/5A.00B",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "incredibuild",
+      "org": "incredibuild",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/incredibuild/66.00F",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "fetcherr",
+      "org": "fetcherr",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/fetcherr/68.006",
+      "city": "netanya"
+    },
+    {
+      "name": "zenity",
+      "org": "zenity",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/zenity/19.000",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nvidia",
+      "org": "nvidia",
+      "provider": "workday",
+      "careers_url": "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "crowdstrike",
+      "org": "crowdstrike",
+      "provider": "workday",
+      "careers_url": "https://crowdstrike.wd5.myworkdayjobs.com/en-US/crowdstrikecareers/job/Israel---Tel-Aviv-Kremenetski/Frontend-Engineer-II_R25630/apply/useMyLastApplication",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "redhat",
+      "org": "redhat",
+      "provider": "workday",
+      "careers_url": "https://redhat.wd5.myworkdayjobs.com/en-US/Jobs/job/Raanana/Senior-Software-Engineer---Red-Hat-Ecosystem-Engineering--Raanana-Office--Israel-_R-051999-1/apply/autofillWithResume",
+      "city": "raanana"
+    },
+    {
+      "name": "marvell",
+      "org": "marvell",
+      "provider": "workday",
+      "careers_url": "https://marvell.wd1.myworkdayjobs.com/en-US/MarvellCareers/job/IL---Petah-Tikva/Signal-Integrity---Principal-Engineer_2402222",
+      "city": "petach tikva"
+    },
+    {
+      "name": "workday",
+      "org": "workday",
+      "provider": "workday",
+      "careers_url": "https://workday.wd5.myworkdayjobs.com/Workday/job/Israel-Tel-Aviv/Manager--Integrations---Technical-Solutions----Hiredscore_JR-0097284",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "careersintl-maxlinear",
+      "org": "careersintl-maxlinear",
+      "provider": "icims",
+      "careers_url": "https://icims.com/careersintl-maxlinear",
+      "city": "petach tikva"
+    },
+    {
+      "name": "eumecareers-lw",
+      "org": "eumecareers-lw",
+      "provider": "icims",
+      "careers_url": "https://icims.com/eumecareers-lw",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "global-nyu",
+      "org": "global-nyu",
+      "provider": "icims",
+      "careers_url": "https://icims.com/global-nyu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "uscareers-nyu",
+      "org": "uscareers-nyu",
+      "provider": "icims",
+      "careers_url": "https://icims.com/uscareers-nyu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nyu",
+      "org": "nyu",
+      "provider": "icims",
+      "careers_url": "https://icims.com/nyu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "spines",
+      "org": "spines",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/spines",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nuvei",
+      "org": "nuvei",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/nuvei",
+      "city": "Tel Aviv"
     }
   ]
 }
