@@ -7,6 +7,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import ssl
 import sys
 import time
@@ -58,8 +59,20 @@ _PROVIDER_HOST = {
 }
 
 _CITY_ALIASES = {
-    # Normalize Ra'anana variations and nearby spellings that often appear in postings.
-    "raanana": ["raanana", "ra'anana"],
+    # Normalize common spelling variations for query + matching.
+    "tel aviv": ["tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv yafo"],
+    "tel aviv-yafo": ["tel aviv-yafo", "tel aviv yafo", "tel aviv"],
+    "herzliya": ["herzliya", "hertzliya", "herzlia"],
+    "kfar saba": ["kfar saba", "kfar sava"],
+    "raanana": ["raanana", "ra'anana", "ra-anana", "ra anana"],
+    "petach tikva": ["petach tikva", "petah tikva", "petach tikvah", "petah tikvah"],
+    "petah tikva": ["petach tikva", "petah tikva", "petach tikvah", "petah tikvah"],
+    "hod hasharon": ["hod hasharon", "hod ha-sharon", "hod ha sharon"],
+    "netanya": ["netanya", "netnaya"],
+    "ramat gan": ["ramat gan", "ramat-gan"],
+    "bnei brak": ["bnei brak", "bnei-brak"],
+    "givatayim": ["givatayim", "giv'atayim", "givataym"],
+    "airport city": ["airport city", "airport-city"],
 }
 
 # ----------------- utils -----------------
@@ -199,6 +212,46 @@ def _provider_from_url(url: str) -> Optional[str]:
     return None
 
 
+def _subdomain_parts(host: str, base: str) -> List[str]:
+    host = (host or "").lower().strip(".")
+    base = (base or "").lower().strip(".")
+    if not host or not base:
+        return []
+    if host == base:
+        return []
+    suffix = "." + base
+    if not host.endswith(suffix):
+        return []
+    sub = host[: -len(suffix)]
+    if not sub:
+        return []
+    return [p for p in sub.split(".") if p]
+
+
+def _extract_icims_org_from_host(host: str) -> Optional[str]:
+    parts = _subdomain_parts(host, "icims.com")
+    if not parts:
+        return None
+    label = parts[-1]
+    if label.startswith("careers-"):
+        label = label[len("careers-") :]
+    if label in {"careers", "jobs"}:
+        return None
+    return label or None
+
+
+def _extract_workday_org_from_host(host: str) -> Optional[str]:
+    parts = _subdomain_parts(host, "myworkdayjobs.com")
+    if not parts:
+        return None
+    first = parts[0]
+    if first.startswith("wd") and first[2:].isdigit():
+        return parts[1] if len(parts) > 1 else None
+    if first in {"careers", "jobs"}:
+        return None
+    return first
+
+
 def _http_get_json(
     url: str, params: Optional[Dict[str, Any]] = None, timeout: float = 25.0
 ) -> Any:
@@ -216,12 +269,108 @@ def _http_get_json(
 def _extract_org_from_url(_provider: str, url: str) -> Optional[str]:
     try:
         p = urlparse(url)
+        host = (p.netloc or "").lower()
         segs = [s for s in (p.path or "").split("/") if s]
         if _provider == "comeet" and len(segs) >= 2 and segs[0].lower() == "jobs":
             return segs[1].lower()
+        if _provider == "icims":
+            org = _extract_icims_org_from_host(host)
+            if org:
+                return org
+            if segs:
+                first = segs[0].lower()
+                if first not in {"jobs", "career", "careers"}:
+                    return first
+            return None
+        if _provider == "workday":
+            if not segs:
+                return _extract_workday_org_from_host(host)
+            lower_segs = [s.lower() for s in segs]
+            if "inline" in lower_segs:
+                idx = lower_segs.index("inline")
+                if len(segs) > idx + 1:
+                    return segs[idx + 1].lower()
+            first = lower_segs[0]
+            if re.match(r"^[a-z]{2}(-[a-z]{2})?$", first) and len(segs) > 1:
+                second = segs[1].lower()
+                if second not in {"details", "job", "jobs", "apply", "applymanually"}:
+                    return second
+            if first not in {"careers", "jobs", "job", "details", "apply", "wday"}:
+                return segs[0].lower()
+            return _extract_workday_org_from_host(host)
         return segs[0].lower() if segs else None
     except Exception:
         return None
+
+
+def _normalize_comeet_careers_url(url: str) -> Optional[str]:
+    if not url:
+        return None
+    try:
+        p = urlparse(url)
+        host = (p.netloc or "").lower()
+        if not host:
+            return None
+        if host.endswith("comeet.com"):
+            host = "www.comeet.com"
+        segs = [s for s in (p.path or "").split("/") if s]
+        if "jobs" in segs:
+            idx = segs.index("jobs")
+            slug = segs[idx + 1] if len(segs) > idx + 1 else None
+            company_uid = segs[idx + 2] if len(segs) > idx + 2 else None
+            if slug and company_uid:
+                return f"https://{host}/jobs/{slug}/{company_uid}"
+            if slug:
+                return f"https://{host}/jobs/{slug}"
+        if segs:
+            return f"https://{host}/{segs[0]}"
+        return f"https://{host}"
+    except Exception:
+        return None
+
+
+def _normalize_city_text(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (text or "").lower()).strip()
+
+
+def _extract_city_from_result(item: Dict[str, Any], cities: List[str]) -> Optional[str]:
+    if not cities:
+        return None
+    parts: List[str] = []
+    for key in ("title", "snippet", "displayed_link", "link"):
+        val = item.get(key)
+        if isinstance(val, str) and val.strip():
+            parts.append(val)
+        elif isinstance(val, list):
+            parts.extend([str(v) for v in val if v])
+    highlighted = item.get("snippet_highlighted_words")
+    if isinstance(highlighted, list):
+        parts.extend([str(v) for v in highlighted if v])
+    elif isinstance(highlighted, str) and highlighted.strip():
+        parts.append(highlighted)
+
+    haystack = _normalize_city_text(" ".join(parts))
+    if not haystack:
+        return None
+
+    normalized: List[Tuple[str, str]] = []
+    seen = set()
+    for c in cities:
+        c_norm = _normalize_city_text(c)
+        if not c_norm or c_norm in seen:
+            continue
+        seen.add(c_norm)
+        normalized.append((c, c_norm))
+
+    if any(c_norm != "israel" for _, c_norm in normalized):
+        normalized = [x for x in normalized if x[1] != "israel"] + [
+            x for x in normalized if x[1] == "israel"
+        ]
+
+    for original, c_norm in normalized:
+        if c_norm and c_norm in haystack:
+            return original
+    return None
 
 
 def _import_provider(provider: str):
@@ -649,13 +798,21 @@ def discover(
                 key = (provider, org)
                 if key in results:
                     continue
-                careers_url = link if provider == "comeet" else f"https://{host}/{org}"
+                resolved_city = city_value or _extract_city_from_result(
+                    item, cities_expanded
+                )
+                if provider == "comeet":
+                    careers_url = _normalize_comeet_careers_url(link) or link
+                elif provider == "workday":
+                    careers_url = link
+                else:
+                    careers_url = f"https://{host}/{org}"
                 results[key] = {
                     "name": org,
                     "org": org,
                     "provider": provider,
                     "careers_url": careers_url,
-                    "city": city_value,
+                    "city": resolved_city,
                 }
                 if len(results) >= limit:
                     break

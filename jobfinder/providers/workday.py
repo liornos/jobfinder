@@ -1,21 +1,46 @@
 # file: jobfinder/providers/workday.py
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from ._http import get_json
 
 API_PATTERNS = [
-    "https://{org}.myworkdayjobs.com/wday/cxs/inline/{org}/jobpostings",
-    "https://{org}.myworkdayjobs.com/{org}/job",
+    "https://{host}/wday/cxs/inline/{org}/jobpostings",
+    "https://{host}/{org}/job",
 ]
 
 
-def fetch_jobs(org: str, *, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def _resolve_host(
+    org: str,
+    *,
+    company: Optional[Dict[str, Any]] = None,
+    careers_url: Optional[str] = None,
+) -> str:
+    url = careers_url or (company or {}).get("careers_url") or ""
+    if url:
+        try:
+            host = (urlparse(url).netloc or "").lower()
+            if host and host.endswith("myworkdayjobs.com"):
+                return host
+        except Exception:
+            pass
+    return f"{org}.myworkdayjobs.com"
+
+
+def fetch_jobs(
+    org: str,
+    *,
+    limit: Optional[int] = None,
+    company: Optional[Dict[str, Any]] = None,
+    careers_url: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Fetch jobs from Workday public API."""
     jobs: List[Dict[str, Any]] = []
+    host = _resolve_host(org, company=company, careers_url=careers_url)
     for pattern in API_PATTERNS:
         try:
-            url = pattern.format(org=org)
+            url = pattern.format(host=host, org=org)
             data = get_json(url)
             # Workday API structure varies, try common patterns
             job_list = (

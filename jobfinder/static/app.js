@@ -129,8 +129,20 @@
   };
 
   const CITY_ALIASES = {
-    // Normalize Ra'anana variants and nearby spellings that often appear in postings.
-    "raanana": ["raanana", "ra'anana"],
+    // Normalize common spelling variations for city selection + filtering.
+    "tel aviv": ["tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv yafo"],
+    "tel aviv-yafo": ["tel aviv-yafo", "tel aviv yafo", "tel aviv"],
+    "herzliya": ["herzliya", "hertzliya", "herzlia"],
+    "kfar saba": ["kfar saba", "kfar sava"],
+    "raanana": ["raanana", "ra'anana", "ra-anana", "ra anana"],
+    "petach tikva": ["petach tikva", "petah tikva", "petach tikvah", "petah tikvah"],
+    "petah tikva": ["petach tikva", "petah tikva", "petach tikvah", "petah tikvah"],
+    "hod hasharon": ["hod hasharon", "hod ha-sharon", "hod ha sharon"],
+    "netanya": ["netanya", "netnaya"],
+    "ramat gan": ["ramat gan", "ramat-gan"],
+    "bnei brak": ["bnei brak", "bnei-brak"],
+    "givatayim": ["givatayim", "giv'atayim", "givataym"],
+    "airport city": ["airport city", "airport-city"],
   };
 
   function expandCities(list) {
@@ -589,7 +601,7 @@
     const keywords = parseListInput("#keywords");
 
     // Keep aligned with backend pipeline._PROVIDER_HOST
-    const DEFAULT_SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims", "workable"];
+    const DEFAULT_SOURCES = ["greenhouse", "lever", "smartrecruiters", "breezy", "comeet", "workday", "recruitee", "jobvite", "icims", "workable"];
     const sourcesEl = qs("#sources");
 
     let sources =
