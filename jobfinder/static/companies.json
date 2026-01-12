@@ -755,6 +755,55 @@
       "provider": "workable",
       "careers_url": "https://apply.workable.com/nuvei",
       "city": "Tel Aviv"
+    },
+    {
+      "name": "cxg",
+      "org": "cxg",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/cxg",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "ezrecruiting",
+      "org": "ezrecruiting",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/ezrecruiting",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "257",
+      "org": "257",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/257",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "guideline",
+      "org": "guideline",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/guideline/89.009",
+      "city": "Bnei Brak"
+    },
+    {
+      "name": "okoora",
+      "org": "okoora",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/okoora/85.00C",
+      "city": "Bnei Brak"
+    },
+    {
+      "name": "rooms",
+      "org": "rooms",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/rooms/0A.002",
+      "city": "Bnei Brak"
+    },
+    {
+      "name": "kueez",
+      "org": "kueez",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/kueez",
+      "city": "Bnei Brak"
     }
   ]
 }
