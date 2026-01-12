@@ -804,6 +804,62 @@
       "provider": "smartrecruiters",
       "careers_url": "https://jobs.smartrecruiters.com/kueez",
       "city": "Bnei Brak"
+    },
+    {
+      "name": "ceva",
+      "org": "ceva",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/ceva/76.005",
+      "city": "Herzliya"
+    },
+    {
+      "name": "hypernative",
+      "org": "hypernative",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/hypernative/8A.00E",
+      "city": "Herzliya"
+    },
+    {
+      "name": "ptc",
+      "org": "ptc",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/ptc/32.005",
+      "city": "Herzliya"
+    },
+    {
+      "name": "mentee_robotics",
+      "org": "mentee_robotics",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/mentee_robotics/6A.002",
+      "city": "Herzliya"
+    },
+    {
+      "name": "codevalue",
+      "org": "codevalue",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/codevalue/81.009",
+      "city": "Herzliya"
+    },
+    {
+      "name": "finonex",
+      "org": "finonex",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/finonex/97.004",
+      "city": "Herzliya"
+    },
+    {
+      "name": "nuvoton",
+      "org": "nuvoton",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/nuvoton/51.00F",
+      "city": "Herzliya"
+    },
+    {
+      "name": "gettyimages",
+      "org": "gettyimages",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/gettyimages",
+      "city": "Herzliya"
     }
   ]
 }

@@ -19,13 +19,13 @@ def _sanitize_city(city: str) -> str:
 def _parse_args() -> argparse.Namespace:
     providers = ", ".join(sorted(pipeline._PROVIDER_HOST.keys()))
     parser = argparse.ArgumentParser(
-        description="Discover companies for one city and one provider via SerpAPI."
+        description="Discover companies for one city and one or more providers via SerpAPI."
     )
     parser.add_argument("--city", required=True, help="Single city (exact string).")
     parser.add_argument(
         "--provider",
         required=True,
-        help=f"Provider name. Options: {providers}",
+        help=f"Provider name or 'all'. Options: {providers}",
     )
     parser.add_argument(
         "--limit",
@@ -125,6 +125,23 @@ def _company_key(company: Dict[str, Any]) -> Optional[Tuple[str, str]]:
     return provider, org
 
 
+def _resolve_providers(value: str) -> List[str]:
+    raw = (value or "").strip().lower()
+    if not raw:
+        return []
+    if raw in {"all", "*"}:
+        return sorted(pipeline._PROVIDER_HOST.keys())
+    parts = [p.strip().lower() for p in raw.split(",") if p.strip()]
+    seen = set()
+    providers: List[str] = []
+    for p in parts:
+        if p in seen:
+            continue
+        seen.add(p)
+        providers.append(p)
+    return providers
+
+
 def _load_company_list(path: Path) -> List[Dict[str, Any]]:
     if not path.exists():
         return []
@@ -169,12 +186,16 @@ def _verify_companies_with_jobs(
     companies: List[Dict[str, Any]],
     provider: str,
     job_link_orgs: set[str] | None = None,
+    *,
+    allow_missing_fetcher: bool = False,
 ) -> List[Dict[str, Any]]:
     if not companies:
         return []
     mod = pipeline._import_provider(provider)
     fetch = getattr(mod, "fetch_jobs", None) if mod else None
     if not callable(fetch):
+        if allow_missing_fetcher:
+            return []
         raise SystemExit(f"Provider '{provider}' has no fetch_jobs function.")
     verified: List[Dict[str, Any]] = []
     for company in companies:
@@ -198,10 +219,15 @@ def main() -> None:
     if not city:
         raise SystemExit("City is required.")
 
-    provider = (args.provider or "").strip().lower()
-    if provider not in pipeline._PROVIDER_HOST:
+    providers = _resolve_providers(args.provider)
+    unknown = [p for p in providers if p not in pipeline._PROVIDER_HOST]
+    if unknown:
         options = ", ".join(sorted(pipeline._PROVIDER_HOST.keys()))
-        raise SystemExit(f"Unknown provider '{provider}'. Options: {options}")
+        raise SystemExit(
+            f"Unknown provider(s) '{', '.join(unknown)}'. Options: {options}"
+        )
+    if not providers:
+        raise SystemExit("Provider is required.")
 
     api_key = (args.api_key or os.getenv("SERPAPI_API_KEY") or "").strip()
     if not api_key:
@@ -209,40 +235,54 @@ def main() -> None:
 
     limit = max(1, int(args.limit or 1))
     num = max(10, min(100, limit))
-    query = f'site:{pipeline._PROVIDER_HOST[provider]} "{city}"'.strip()
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    allow_missing_fetcher = len(providers) > 1
 
-    params = {
-        "engine": "google",
-        "q": query,
-        "num": num,
-        "hl": "en",
-        "api_key": api_key,
-    }
-    data = pipeline._http_get_json("https://serpapi.com/search.json", params=params)
+    all_companies: List[Dict[str, Any]] = []
+    all_verified: List[Dict[str, Any]] = []
+    for provider in providers:
+        query = f'site:{pipeline._PROVIDER_HOST[provider]} "{city}"'.strip()
 
-    companies, job_link_orgs = _build_companies(
-        data, provider=provider, city=city, limit=limit
-    )
-    verified = _verify_companies_with_jobs(
-        companies, provider, job_link_orgs=job_link_orgs
-    )
-    payload = {"companies": companies}
+        params = {
+            "engine": "google",
+            "q": query,
+            "num": num,
+            "hl": "en",
+            "api_key": api_key,
+        }
+        data = pipeline._http_get_json("https://serpapi.com/search.json", params=params)
+
+        companies, job_link_orgs = _build_companies(
+            data, provider=provider, city=city, limit=limit
+        )
+        verified = _verify_companies_with_jobs(
+            companies,
+            provider,
+            job_link_orgs=job_link_orgs,
+            allow_missing_fetcher=allow_missing_fetcher,
+        )
+        all_companies.extend(companies)
+        all_verified.extend(verified)
+        print(
+            f"{provider}: discovered {len(companies)} companies, verified {len(verified)}"
+        )
+    payload = {"companies": all_companies}
 
     out_path = Path(args.out)
     if out_path.suffix.lower() != ".json":
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
         city_slug = _slugify(city)
-        filename = f"companies_{city_slug}_{provider}_{timestamp}.json"
+        provider_slug = "all" if len(providers) > 1 else providers[0]
+        filename = f"companies_{city_slug}_{provider_slug}_{timestamp}.json"
         out_path = out_path / filename
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8"
     )
-    print(f"Wrote {len(companies)} companies to {out_path}")
-    print(f"Verified {len(verified)} companies with live jobs")
+    print(f"Wrote {len(all_companies)} companies to {out_path}")
+    print(f"Verified {len(all_verified)} companies with live jobs")
 
     origin_path = Path(args.origin)
-    added = _update_origin_companies(verified, origin_path)
+    added = _update_origin_companies(all_verified, origin_path)
     print(f"Added {added} companies to {origin_path}")
 
 
