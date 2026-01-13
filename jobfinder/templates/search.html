@@ -15,7 +15,6 @@
         <img src="/static/jobfinder-image.png" alt="JobFinder logo" class="h-16 w-20 rounded-2xl shadow-md object-cover">
         <div>
           <h1 class="text-2xl font-bold">JobFinder Quick Search</h1>
-          <p class="text-sm text-slate-600">Filter jobs already stored in the database</p>
         </div>
       </div>
       <div class="flex justify-center sm:justify-end">
@@ -27,59 +26,61 @@
     </header>
 
     <section class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100">
-      <form id="searchForm" class="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
-        <div>
-          <label for="citySelect" class="block text-sm font-medium">Cities</label>
-          <select id="citySelect"
-                  class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
-            <option value="">Choose a city or district</option>
-            <option value="__all__">Israel - All</option>
-            <optgroup label="Cities">
-              <option value="Tel Aviv">Tel Aviv</option>
-              <option value="Herzliya">Herzliya</option>
-              <option value="Kfar Saba">Kfar Saba</option>
-              <option value="Raanana">Raanana</option>
-              <option value="Petach Tikva">Petach Tikva</option>
-              <option value="Hod Hasharon">Hod Hasharon</option>
-              <option value="Netanya">Netanya</option>
-              <option value="Ramat Gan">Ramat Gan</option>
-              <option value="Bnei Brak">Bnei Brak</option>
-              <option value="Holon">Holon</option>
-              <option value="Rehovot">Rehovot</option>
-              <option value="Airport City">Airport City</option>
-              <option value="Binyamina">Binyamina</option>
-              <option value="Caesarea">Caesarea</option>
-              <option value="Haifa">Haifa</option>
-              <option value="Jerusalem">Jerusalem</option>
-              <option value="Yokneam Illit">Yokneam Illit</option>
-            </optgroup>
-            <optgroup label="Districts">
-              <option value="Tel Aviv, Ramat Gan, Petach Tikva">Tel Aviv District</option>
-              <option value="Herzliya, Kfar Saba, Raanana, Hod Hasharon">Hasharon District</option>
-              <option value="Haifa, Yokneam Illit, Caesarea">Haifa District</option>
-              <option value="Jerusalem">Jerusalem District</option>
-            </optgroup>
-          </select>
-          <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
-            <span>Selected</span>
-            <button id="cityClear" type="button" class="hover:text-slate-700">Clear</button>
+      <form id="searchForm" class="grid gap-3">
+        <div class="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-start">
+          <div>
+            <label for="citySelect" class="block text-sm font-medium">Cities</label>
+            <select id="citySelect"
+                    class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+              <option value="">Choose a city or district</option>
+              <option value="__all__">Israel - All</option>
+              <optgroup label="Cities">
+                <option value="Tel Aviv">Tel Aviv</option>
+                <option value="Herzliya">Herzliya</option>
+                <option value="Kfar Saba">Kfar Saba</option>
+                <option value="Raanana">Raanana</option>
+                <option value="Petach Tikva">Petach Tikva</option>
+                <option value="Hod Hasharon">Hod Hasharon</option>
+                <option value="Netanya">Netanya</option>
+                <option value="Ramat Gan">Ramat Gan</option>
+                <option value="Bnei Brak">Bnei Brak</option>
+                <option value="Holon">Holon</option>
+                <option value="Rehovot">Rehovot</option>
+                <option value="Airport City">Airport City</option>
+                <option value="Binyamina">Binyamina</option>
+                <option value="Caesarea">Caesarea</option>
+                <option value="Haifa">Haifa</option>
+                <option value="Jerusalem">Jerusalem</option>
+                <option value="Yokneam Illit">Yokneam Illit</option>
+              </optgroup>
+              <optgroup label="Districts">
+                <option value="Tel Aviv, Ramat Gan, Petach Tikva">Tel Aviv District</option>
+                <option value="Herzliya, Kfar Saba, Raanana, Hod Hasharon">Hasharon District</option>
+                <option value="Haifa, Yokneam Illit, Caesarea">Haifa District</option>
+                <option value="Jerusalem">Jerusalem District</option>
+              </optgroup>
+            </select>
           </div>
-          <div id="citySelected" class="mt-1 flex flex-wrap gap-2"></div>
+          <div>
+            <label for="titleInput" class="block text-sm font-medium">Job title search</label>
+            <input id="titleInput" type="text"
+                   class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                   placeholder="software engineer, qa, automation">
+          </div>
+          <button id="searchBtn" type="submit"
+                  class="w-full md:self-end rounded-2xl px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white flex items-center justify-center gap-2
+                         hover:shadow-lg hover:shadow-cyan-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-cyan-200"
+                  aria-live="polite">
+            <span id="searchBtnText">Search</span>
+            <span id="searchSpinner"
+                  class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          </button>
         </div>
-        <div>
-          <label for="titleInput" class="block text-sm font-medium">Job title search</label>
-          <input id="titleInput" type="text"
-                 class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
-                 placeholder="software engineer, qa, automation">
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <span>Selected</span>
+          <button id="cityClear" type="button" class="hover:text-slate-700">Clear</button>
         </div>
-        <button id="searchBtn" type="submit"
-                class="w-full rounded-2xl px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white flex items-center justify-center gap-2
-                       hover:shadow-lg hover:shadow-cyan-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-cyan-200"
-                aria-live="polite">
-          <span id="searchBtnText">Search</span>
-          <span id="searchSpinner"
-                class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-        </button>
+        <div id="citySelected" class="mt-1 flex flex-wrap gap-2"></div>
       </form>
       <p class="text-xs text-gray-500 mt-2">
         This page uses existing jobs in the database. To refresh data, open the full workflow page.
