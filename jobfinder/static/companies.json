@@ -902,6 +902,104 @@
       "provider": "smartrecruiters",
       "careers_url": "https://jobs.smartrecruiters.com/egisgroup",
       "city": "Holon"
+    },
+    {
+      "name": "proteantecs",
+      "org": "proteantecs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/proteantecs/D5.00E",
+      "city": "Haifa"
+    },
+    {
+      "name": "vastdata",
+      "org": "vastdata",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/vastdata/43.001",
+      "city": "Haifa"
+    },
+    {
+      "name": "plus500",
+      "org": "plus500",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/plus500/A1.00F",
+      "city": "Haifa"
+    },
+    {
+      "name": "deloitte",
+      "org": "deloitte",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/deloitte/F7.00B",
+      "city": "Haifa"
+    },
+    {
+      "name": "regulus",
+      "org": "regulus",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/regulus/9A.00D",
+      "city": "Haifa"
+    },
+    {
+      "name": "gini-apps",
+      "org": "gini-apps",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/gini-apps/66.000",
+      "city": "Haifa"
+    },
+    {
+      "name": "lightricks",
+      "org": "lightricks",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/lightricks",
+      "city": "Haifa"
+    },
+    {
+      "name": "augury",
+      "org": "augury",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/augury",
+      "city": "Haifa"
+    },
+    {
+      "name": "veracyte",
+      "org": "veracyte",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/veracyte",
+      "city": "Haifa"
+    },
+    {
+      "name": "intuitive",
+      "org": "intuitive",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/intuitive",
+      "city": "Haifa"
+    },
+    {
+      "name": "wixtest",
+      "org": "wixtest",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/wixtest",
+      "city": "Haifa"
+    },
+    {
+      "name": "rte1",
+      "org": "rte1",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/rte1",
+      "city": "Haifa"
+    },
+    {
+      "name": "regatta-3",
+      "org": "regatta-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/regatta-3",
+      "city": "Haifa"
+    },
+    {
+      "name": "two95-international-inc-3",
+      "org": "two95-international-inc-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/two95-international-inc-3",
+      "city": "Haifa"
     }
   ]
 }
