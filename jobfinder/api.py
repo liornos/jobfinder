@@ -5,6 +5,7 @@ import argparse
 import json
 import logging
 import os
+import threading
 from typing import Any, Dict, List
 
 from flask import Blueprint, Flask, jsonify, render_template, request
@@ -19,10 +20,14 @@ except Exception:
 
 
 from . import db, filtering, pipeline
+from .alerts.companies import load_companies
+from .config import load_config
 from .logging_utils import setup_logging
 
 api = Blueprint("api", __name__)
 log = logging.getLogger(__name__)
+_STARTUP_REFRESH_DONE = False
+_STARTUP_REFRESH_LOCK = threading.Lock()
 
 
 def _parse_list(value: Any) -> List[str]:
@@ -37,6 +42,53 @@ def _parse_list(value: Any) -> List[str]:
                     items.append(part)
         return items
     return [s.strip() for s in str(value).split(",") if s.strip()]
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _run_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
+    try:
+        companies = load_companies()
+    except Exception as exc:
+        log.warning("Auto refresh skipped: %s", exc)
+        return
+
+    if not companies:
+        log.info("Auto refresh skipped: no companies found")
+        return
+
+    log.info("Auto refresh starting | companies=%d", len(companies))
+    summary = pipeline.refresh(
+        companies=companies, cities=cities or None, keywords=keywords or None
+    )
+    log.info("Auto refresh finished | summary=%s", summary)
+
+
+def _maybe_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
+    global _STARTUP_REFRESH_DONE
+    if not _env_bool("AUTO_REFRESH_ON_START", True):
+        return
+
+    with _STARTUP_REFRESH_LOCK:
+        if _STARTUP_REFRESH_DONE:
+            return
+        _STARTUP_REFRESH_DONE = True
+
+    if _env_bool("AUTO_REFRESH_ASYNC", True):
+        t = threading.Thread(
+            target=_run_startup_refresh,
+            kwargs={"cities": cities, "keywords": keywords},
+            name="jobfinder-startup-refresh",
+            daemon=True,
+        )
+        t.start()
+    else:
+        _run_startup_refresh(cities=cities, keywords=keywords)
 
 
 @api.route("/discover", methods=["POST"])
@@ -247,14 +299,19 @@ def create_app() -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
     CORS(app)
     app.register_blueprint(api)
+    auto_refresh_on_start = _env_bool("AUTO_REFRESH_ON_START", True)
+    cfg = load_config()
     try:
         db.init_db()
     except Exception as e:
         log.warning("DB init skipped (non-fatal): %s", e)
+    _maybe_startup_refresh(cities=cfg.defaults.cities, keywords=cfg.defaults.keywords)
 
     @app.get("/")
     def index() -> str:
-        return render_template("index.html")
+        return render_template(
+            "index.html", auto_refresh_on_start=auto_refresh_on_start
+        )
 
     @app.get("/search")
     def search() -> str:
