@@ -12,6 +12,7 @@
 
   const isDebug = () => (localStorage.getItem("jobfinder_debug") || "") === "1";
   const isE2eMode = () => new URLSearchParams(window.location.search).has("e2e");
+  const serverAutoRefreshEnabled = () => document.body?.dataset?.autoRefreshOnStart === "1";
   const log = (...args) => console.log("[jobfinder]", ...args);
   const debug = (...args) => { if (isDebug()) console.debug("[jobfinder:debug]", ...args); };
   const err = (...args) => console.error("[jobfinder:error]", ...args);
@@ -858,7 +859,7 @@
 
     // Load any existing jobs already in the DB so filters/pagination stay fast
     loadJobsFromDB({ silent: true });
-    if (!isE2eMode()) autoRefreshOnStartup();
+    if (!isE2eMode() && !serverAutoRefreshEnabled()) autoRefreshOnStartup();
   }
 
   document.addEventListener("DOMContentLoaded", init);
