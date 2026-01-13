@@ -860,6 +860,398 @@
       "provider": "lever",
       "careers_url": "https://jobs.lever.co/gettyimages",
       "city": "Herzliya"
+    },
+    {
+      "name": "dealhub",
+      "org": "dealhub",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/dealhub/86.005",
+      "city": "Holon"
+    },
+    {
+      "name": "abra_rnd",
+      "org": "abra_rnd",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/abra_rnd/15.007",
+      "city": "Holon"
+    },
+    {
+      "name": "vpgsensors",
+      "org": "vpgsensors",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/vpgsensors/C8.009",
+      "city": "Holon"
+    },
+    {
+      "name": "zim",
+      "org": "zim",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/zim/72.008",
+      "city": "Holon"
+    },
+    {
+      "name": "cgen",
+      "org": "cgen",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cgen/D9.00E",
+      "city": "Holon"
+    },
+    {
+      "name": "egisgroup",
+      "org": "egisgroup",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/egisgroup",
+      "city": "Holon"
+    },
+    {
+      "name": "proteantecs",
+      "org": "proteantecs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/proteantecs/D5.00E",
+      "city": "Haifa"
+    },
+    {
+      "name": "vastdata",
+      "org": "vastdata",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/vastdata/43.001",
+      "city": "Haifa"
+    },
+    {
+      "name": "plus500",
+      "org": "plus500",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/plus500/A1.00F",
+      "city": "Haifa"
+    },
+    {
+      "name": "deloitte",
+      "org": "deloitte",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/deloitte/F7.00B",
+      "city": "Haifa"
+    },
+    {
+      "name": "regulus",
+      "org": "regulus",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/regulus/9A.00D",
+      "city": "Haifa"
+    },
+    {
+      "name": "gini-apps",
+      "org": "gini-apps",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/gini-apps/66.000",
+      "city": "Haifa"
+    },
+    {
+      "name": "lightricks",
+      "org": "lightricks",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/lightricks",
+      "city": "Haifa"
+    },
+    {
+      "name": "augury",
+      "org": "augury",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/augury",
+      "city": "Haifa"
+    },
+    {
+      "name": "veracyte",
+      "org": "veracyte",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/veracyte",
+      "city": "Haifa"
+    },
+    {
+      "name": "intuitive",
+      "org": "intuitive",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/intuitive",
+      "city": "Haifa"
+    },
+    {
+      "name": "wixtest",
+      "org": "wixtest",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/wixtest",
+      "city": "Haifa"
+    },
+    {
+      "name": "rte1",
+      "org": "rte1",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/rte1",
+      "city": "Haifa"
+    },
+    {
+      "name": "regatta-3",
+      "org": "regatta-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/regatta-3",
+      "city": "Haifa"
+    },
+    {
+      "name": "two95-international-inc-3",
+      "org": "two95-international-inc-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/two95-international-inc-3",
+      "city": "Haifa"
+    },
+    {
+      "name": "pi-cardia",
+      "org": "pi-cardia",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/pi-cardia/A5.00B",
+      "city": "Rehovot"
+    },
+    {
+      "name": "nova",
+      "org": "nova",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/nova/A5.007",
+      "city": "Rehovot"
+    },
+    {
+      "name": "landacorp",
+      "org": "landacorp",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/landacorp/A4.000",
+      "city": "Rehovot"
+    },
+    {
+      "name": "redefinemeat",
+      "org": "redefinemeat",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/redefinemeat/28.004",
+      "city": "Rehovot"
+    },
+    {
+      "name": "autotalks",
+      "org": "autotalks",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/autotalks/03.009",
+      "city": "Rehovot"
+    },
+    {
+      "name": "acs",
+      "org": "acs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/ACS/14.000",
+      "city": "yokneam illit"
+    },
+    {
+      "name": "forsightrobotics",
+      "org": "forsightrobotics",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/forsightrobotics/E9.008",
+      "city": "caesarea"
+    },
+    {
+      "name": "clinch",
+      "org": "clinch",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/clinch/42.007",
+      "city": "caesarea"
+    },
+    {
+      "name": "h2pro",
+      "org": "h2pro",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/h2pro/A7.001",
+      "city": "caesarea"
+    },
+    {
+      "name": "relredel",
+      "org": "relredel",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/relredel/A6.008",
+      "city": "caesarea"
+    },
+    {
+      "name": "almalasers",
+      "org": "almalasers",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/almalasers/67.006",
+      "city": "caesarea"
+    },
+    {
+      "name": "clinchlabsltd",
+      "org": "clinchlabsltd",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/clinchlabsltd",
+      "city": "caesarea"
+    },
+    {
+      "name": "crossriver",
+      "org": "crossriver",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/crossriver/C7.00F",
+      "city": "jerusalem"
+    },
+    {
+      "name": "fullpath",
+      "org": "fullpath",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/fullpath/54.002",
+      "city": "jerusalem"
+    },
+    {
+      "name": "jvp",
+      "org": "jvp",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/jvp/35.00E",
+      "city": "jerusalem"
+    },
+    {
+      "name": "jdc",
+      "org": "jdc",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/JDC/F3.004",
+      "city": "jerusalem"
+    },
+    {
+      "name": "fluenttech",
+      "org": "fluenttech",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/fluenttech/E5.00E",
+      "city": "jerusalem"
+    },
+    {
+      "name": "idt",
+      "org": "idt",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/idt",
+      "city": "jerusalem"
+    },
+    {
+      "name": "vo2-group",
+      "org": "vo2-group",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/vo2-group",
+      "city": "jerusalem"
+    },
+    {
+      "name": "leverdemo-8",
+      "org": "leverdemo-8",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/leverdemo-8",
+      "city": "jerusalem"
+    },
+    {
+      "name": "whitehat1",
+      "org": "whitehat1",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/whitehat1",
+      "city": "jerusalem"
+    },
+    {
+      "name": "jobsforhumanity",
+      "org": "jobsforhumanity",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/jobsforhumanity",
+      "city": "jerusalem"
+    },
+    {
+      "name": "starforlife",
+      "org": "starforlife",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/starforlife",
+      "city": "jerusalem"
+    },
+    {
+      "name": "networx-1",
+      "org": "networx-1",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/networx-1",
+      "city": "jerusalem"
+    },
+    {
+      "name": "premium-merchant-funding-3",
+      "org": "premium-merchant-funding-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/premium-merchant-funding-3",
+      "city": "jerusalem"
+    },
+    {
+      "name": "hi-jobs",
+      "org": "hi-jobs",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/hi-jobs",
+      "city": "jerusalem"
+    },
+    {
+      "name": "surglobal",
+      "org": "surglobal",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/surglobal",
+      "city": "jerusalem"
+    },
+    {
+      "name": "patrique-mercier-recruitment-1",
+      "org": "patrique-mercier-recruitment-1",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/patrique-mercier-recruitment-1",
+      "city": "jerusalem"
+    },
+    {
+      "name": "voyantis",
+      "org": "voyantis",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/voyantis/86.00B",
+      "city": "tel aviv"
+    },
+    {
+      "name": "soliduslabs",
+      "org": "soliduslabs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/soliduslabs/E6.007",
+      "city": "tel aviv"
+    },
+    {
+      "name": "vi",
+      "org": "vi",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/vi/B1.002",
+      "city": "tel aviv"
+    },
+    {
+      "name": "guardz",
+      "org": "guardz",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/guardz",
+      "city": "tel aviv"
+    },
+    {
+      "name": "rws",
+      "org": "rws",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/rws",
+      "city": "tel aviv"
+    },
+    {
+      "name": "logz",
+      "org": "logz",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/logz",
+      "city": "tel aviv"
+    },
+    {
+      "name": "smithsgroup2",
+      "org": "smithsgroup2",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/smithsgroup2",
+      "city": "tel aviv"
+    },
+    {
+      "name": "dev2",
+      "org": "dev2",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/dev2",
+      "city": "tel aviv"
     }
   ]
 }
