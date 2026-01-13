@@ -860,6 +860,48 @@
       "provider": "lever",
       "careers_url": "https://jobs.lever.co/gettyimages",
       "city": "Herzliya"
+    },
+    {
+      "name": "dealhub",
+      "org": "dealhub",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/dealhub/86.005",
+      "city": "Holon"
+    },
+    {
+      "name": "abra_rnd",
+      "org": "abra_rnd",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/abra_rnd/15.007",
+      "city": "Holon"
+    },
+    {
+      "name": "vpgsensors",
+      "org": "vpgsensors",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/vpgsensors/C8.009",
+      "city": "Holon"
+    },
+    {
+      "name": "zim",
+      "org": "zim",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/zim/72.008",
+      "city": "Holon"
+    },
+    {
+      "name": "cgen",
+      "org": "cgen",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cgen/D9.00E",
+      "city": "Holon"
+    },
+    {
+      "name": "egisgroup",
+      "org": "egisgroup",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/egisgroup",
+      "city": "Holon"
     }
   ]
 }
