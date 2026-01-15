@@ -142,7 +142,21 @@
     if (!body) return;
     body.innerHTML = "";
 
-    rows.forEach((r) => {
+    const orderedRows = rows
+      .map((r) => ({
+        row: r,
+        status: (r?.status || "").toLowerCase(),
+        fetched: Number(r?.jobs_fetched ?? 0),
+      }))
+      .sort((a, b) => {
+        const aOk = a.status === "ok";
+        const bOk = b.status === "ok";
+        if (aOk !== bOk) return aOk ? 1 : -1;
+        return b.fetched - a.fetched;
+      })
+      .map((entry) => entry.row);
+
+    orderedRows.forEach((r) => {
       const status = (r?.status || "error").toLowerCase();
       const isOk = status === "ok";
       const name = r?.name || r?.org || "unknown";
