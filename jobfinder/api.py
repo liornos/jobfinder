@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import logging
 import os
 import threading
-from typing import Any, Dict, List
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 from flask import Blueprint, Flask, jsonify, render_template, request
 
@@ -127,6 +131,263 @@ def discover() -> Any:
     return jsonify({"error": "discover() not implemented in pipeline"}), 501
 
 
+def _refresh_with_report(
+    *,
+    companies: List[Dict[str, Any]],
+    cities: List[str],
+    keywords: List[str],
+    provider: Optional[str],
+    top: Optional[Any],
+) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+    companies = companies or []
+    limit: Optional[int] = None
+    if top is not None and str(top).strip():
+        try:
+            limit = max(1, int(top))
+        except (TypeError, ValueError):
+            limit = None
+
+    def _supports_limit(fetch_fn) -> bool:
+        try:
+            sig = inspect.signature(fetch_fn)
+        except (TypeError, ValueError):
+            return False
+        if "limit" in sig.parameters:
+            return True
+        return any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+
+    def _fetch_jobs_with_error(
+        fetch_fn,
+        org: str,
+        company: Dict[str, Any],
+        *,
+        limit_val: Optional[int],
+    ) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+        attempts: List[Dict[str, Any]] = []
+        if company:
+            attempts.append({"org": org, "company": company})
+            careers_url = (company.get("careers_url") or "").strip()
+            if careers_url:
+                attempts.append({"org": org, "careers_url": careers_url})
+        attempts.extend(({"org": org}, {"slug": org}, {"company": org}, {}))
+
+        limit_ok = limit_val if (limit_val and _supports_limit(fetch_fn)) else None
+        last_exc: Optional[BaseException] = None
+        for kwargs in attempts:
+            try:
+                call_kwargs = dict(kwargs)
+                if limit_ok is not None:
+                    call_kwargs["limit"] = limit_ok
+                if call_kwargs:
+                    return list(fetch_fn(**call_kwargs)), None
+                return list(fetch_fn(org)), None
+            except TypeError:
+                continue
+            except Exception as exc:
+                last_exc = exc
+                break
+        if last_exc:
+            return [], str(last_exc)
+        return [], "no_compatible_signature"
+
+    def _write_company_jobs(
+        *,
+        company_payload: Dict[str, Any],
+        jobs: List[Dict[str, Any]],
+        seen_at: datetime,
+        keywords_list: List[str],
+        cities_list: List[str],
+    ) -> int:
+        with db.session_scope() as session:
+            company_row = db.upsert_company(session, company_payload)
+            seen_keys: List[str] = []
+            written = 0
+            for job in jobs:
+                row = db.upsert_job(
+                    session,
+                    company=company_row,
+                    job_dict=job,
+                    seen_at=seen_at,
+                    keywords=keywords_list,
+                    cities=cities_list,
+                )
+                seen_keys.append(row.job_key)
+                written += 1
+            db.mark_inactive(
+                session,
+                provider=company_row.provider,
+                org=company_row.org,
+                seen_keys=seen_keys,
+                seen_at=seen_at,
+            )
+        return written
+
+    db.init_db()
+    cities_list = pipeline._expand_city_aliases(pipeline._as_str_list(cities))
+    keywords_list = pipeline._as_str_list(keywords)
+    prov_filter = (str(provider).strip().lower()) if provider else None
+    t0 = time.perf_counter()
+
+    report_by_index: List[Optional[Dict[str, Any]]] = [None] * len(companies)
+    companies_ok = 0
+    companies_failed = 0
+    jobs_fetched_total = 0
+    jobs_written_total = 0
+
+    def _fetch_company(idx: int, company: Dict[str, Any]) -> Dict[str, Any]:
+        t1 = time.perf_counter()
+        name = (company.get("name") or "").strip()
+        provider_val = (company.get("provider") or "").strip().lower()
+        org = (
+            company.get("org")
+            or company.get("slug")
+            or company.get("company")
+            or company.get("name")
+            or ""
+        )
+        org = str(org).strip()
+
+        result: Dict[str, Any] = {
+            "index": idx,
+            "name": name or org or "unknown",
+            "provider": provider_val or None,
+            "org": org or None,
+            "status": "error",
+            "error": None,
+            "jobs": [],
+            "jobs_fetched": 0,
+            "company_payload": None,
+            "elapsed_fetch_ms": 0,
+            "skip_write": False,
+        }
+        try:
+            if not provider_val or not org:
+                raise ValueError("Company requires provider and org")
+
+            company_payload = {**company, "provider": provider_val, "org": org}
+            result["company_payload"] = company_payload
+            if prov_filter and provider_val != prov_filter:
+                result["skip_write"] = True
+                result["status"] = "ok"
+                return result
+
+            mod = pipeline._import_provider(provider_val)
+            if mod is None:
+                raise RuntimeError(f"Provider '{provider_val}' not found")
+            fetch_fn = getattr(mod, "fetch_jobs", None)
+            if not callable(fetch_fn):
+                raise RuntimeError(f"Provider '{provider_val}' has no fetch_jobs()")
+
+            raw_jobs, fetch_error = _fetch_jobs_with_error(
+                fetch_fn, org, company_payload, limit_val=limit
+            )
+            if fetch_error:
+                raise RuntimeError(fetch_error)
+
+            jobs = [
+                pipeline._normalize_job(company_payload, provider_val, rj)
+                for rj in raw_jobs
+            ]
+            for job in jobs:
+                score_val, reasons = pipeline._compute_score(
+                    job, keywords_list, cities_list
+                )
+                job["score"] = score_val
+                if reasons:
+                    job["reasons"] = reasons
+
+            result["jobs_fetched"] = len(raw_jobs)
+            result["jobs"] = pipeline._dedupe(jobs)
+            result["status"] = "ok"
+        except Exception as exc:
+            result["error"] = str(exc)
+        finally:
+            result["elapsed_fetch_ms"] = int((time.perf_counter() - t1) * 1000)
+        return result
+
+    fetch_results: List[Dict[str, Any]] = []
+    if companies:
+        max_workers = min(8, len(companies))
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = [
+                pool.submit(_fetch_company, idx, c) for idx, c in enumerate(companies)
+            ]
+            for future in as_completed(futures):
+                fetch_results.append(future.result())
+
+    for res in fetch_results:
+        idx = int(res.get("index") or 0)
+        item = {
+            "name": res.get("name") or "unknown",
+            "provider": res.get("provider"),
+            "org": res.get("org"),
+            "status": res.get("status") or "error",
+            "jobs_fetched": int(res.get("jobs_fetched") or 0),
+            "jobs_written": 0,
+            "elapsed_ms": int(res.get("elapsed_fetch_ms") or 0),
+        }
+
+        if item["status"] != "ok":
+            companies_failed += 1
+            err_val = res.get("error")
+            if err_val:
+                item["error"] = str(err_val)
+            report_by_index[idx] = item
+            continue
+
+        if res.get("skip_write"):
+            item["status"] = "ok"
+            companies_ok += 1
+            report_by_index[idx] = item
+            continue
+
+        jobs_fetched_total += item["jobs_fetched"]
+        company_payload = res.get("company_payload")
+        if not isinstance(company_payload, dict):
+            companies_failed += 1
+            item["status"] = "error"
+            item["error"] = "Missing company payload"
+            report_by_index[idx] = item
+            continue
+
+        t_write = time.perf_counter()
+        try:
+            seen_at = datetime.now(timezone.utc)
+            written = _write_company_jobs(
+                company_payload=company_payload,
+                jobs=res.get("jobs") or [],
+                seen_at=seen_at,
+                keywords_list=keywords_list,
+                cities_list=cities_list,
+            )
+            item["jobs_written"] = written
+            jobs_written_total += written
+            item["status"] = "ok"
+            companies_ok += 1
+        except Exception as exc:
+            companies_failed += 1
+            item["status"] = "error"
+            item["error"] = str(exc)
+        item["elapsed_ms"] = item["elapsed_ms"] + int(
+            (time.perf_counter() - t_write) * 1000
+        )
+        report_by_index[idx] = item
+
+    report = [r for r in report_by_index if r is not None]
+
+    summary = {
+        "companies_total": len(companies),
+        "companies_ok": companies_ok,
+        "companies_failed": companies_failed,
+        "jobs_fetched": jobs_fetched_total,
+        "jobs_written": jobs_written_total,
+        "elapsed_ms": int((time.perf_counter() - t0) * 1000),
+    }
+    return summary, report
+
+
 @api.route("/refresh", methods=["POST"])
 def refresh() -> Any:
     body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
@@ -153,6 +414,33 @@ def refresh() -> Any:
 
     log.info("API /refresh summary=%s", summary)
     return jsonify({"summary": summary})
+
+
+@api.route("/debug/refresh", methods=["POST"])
+def debug_refresh() -> Any:
+    body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+    companies = body.get("companies") or []
+    cities = _parse_list(body.get("cities"))
+    keywords = _parse_list(body.get("keywords"))
+    provider = body.get("provider") or None
+    top_raw = body.get("top")
+
+    log.info("API /debug/refresh called | companies=%d", len(companies or []))
+
+    try:
+        summary, report = _refresh_with_report(
+            companies=companies,
+            cities=cities,
+            keywords=keywords,
+            provider=provider,
+            top=top_raw,
+        )
+    except Exception as e:
+        log.exception("API /debug/refresh failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+    log.info("API /debug/refresh summary=%s", summary)
+    return jsonify({"summary": summary, "companies": report})
 
 
 @api.route("/jobs", methods=["GET"])
@@ -310,7 +598,17 @@ def create_app() -> Flask:
     @app.get("/")
     def index() -> str:
         return render_template(
-            "index.html", auto_refresh_on_start=auto_refresh_on_start
+            "index.html",
+            auto_refresh_on_start=auto_refresh_on_start,
+            show_refresh_report=False,
+        )
+
+    @app.get("/debug/refresh-report")
+    def debug_refresh_report() -> str:
+        return render_template(
+            "index.html",
+            auto_refresh_on_start=auto_refresh_on_start,
+            show_refresh_report=True,
         )
 
     @app.get("/search")

@@ -13,6 +13,7 @@
   const isDebug = () => (localStorage.getItem("jobfinder_debug") || "") === "1";
   const isE2eMode = () => new URLSearchParams(window.location.search).has("e2e");
   const serverAutoRefreshEnabled = () => document.body?.dataset?.autoRefreshOnStart === "1";
+  const refreshEndpoint = () => document.body?.dataset?.refreshEndpoint || "/refresh";
   const log = (...args) => console.log("[jobfinder]", ...args);
   const debug = (...args) => { if (isDebug()) console.debug("[jobfinder:debug]", ...args); };
   const err = (...args) => console.error("[jobfinder:error]", ...args);
@@ -103,6 +104,80 @@
       if (spn) spn.classList.add("hidden");
       setScanMsg("", "info");
     }
+  }
+
+  function fmtDuration(ms) {
+    if (ms === null || ms === undefined) return "";
+    const val = Number(ms);
+    if (!Number.isFinite(val)) return "";
+    if (val < 1000) return `${Math.round(val)} ms`;
+    return `${(val / 1000).toFixed(1)}s`;
+  }
+
+  function renderRefreshReport(payload) {
+    const panel = qs("#refreshReportPanel");
+    if (!panel) return;
+
+    const summary = payload?.summary || {};
+    const rows = Array.isArray(payload?.companies) ? payload.companies : [];
+    if (!rows.length && !Object.keys(summary).length) {
+      panel.style.display = "none";
+      return;
+    }
+
+    panel.style.display = "";
+    const now = new Date();
+    setText(qs("#refreshReportTime"), now.toLocaleString());
+    setText(qs("#reportLastRun"), now.toLocaleTimeString());
+
+    const total = summary.companies_total ?? rows.length ?? 0;
+    setText(qs("#reportCompaniesTotal"), String(total));
+    setText(qs("#reportCompaniesOk"), String(summary.companies_ok ?? 0));
+    setText(qs("#reportCompaniesFailed"), String(summary.companies_failed ?? 0));
+    setText(qs("#reportJobsFetched"), String(summary.jobs_fetched ?? 0));
+    setText(qs("#reportJobsWritten"), String(summary.jobs_written ?? 0));
+    setText(qs("#reportElapsed"), fmtDuration(summary.elapsed_ms ?? 0));
+
+    const body = qs("#refreshReportBody");
+    if (!body) return;
+    body.innerHTML = "";
+
+    rows.forEach((r) => {
+      const status = (r?.status || "error").toLowerCase();
+      const isOk = status === "ok";
+      const name = r?.name || r?.org || "unknown";
+      const provider = r?.provider || "";
+      const org = r?.org || "";
+      const metaParts = [];
+      if (provider) metaParts.push(`provider: ${provider}`);
+      if (org) metaParts.push(`org: ${org}`);
+      if (r?.elapsed_ms !== undefined && r?.elapsed_ms !== null) {
+        metaParts.push(`time: ${fmtDuration(r.elapsed_ms)}`);
+      }
+      const meta = metaParts.join(" | ");
+      const errText = r?.error ? String(r.error) : "";
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="p-2">
+          <div class="font-medium">${escapeHtml(name)}</div>
+          <div class="text-xs text-slate-500">${escapeHtml(meta)}</div>
+        </td>
+        <td class="p-2">
+          <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${
+            isOk
+              ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+              : "border-red-100 bg-red-50 text-red-700"
+          }">${isOk ? "OK" : "ERROR"}</span>
+        </td>
+        <td class="p-2 text-right">${escapeHtml(String(r?.jobs_fetched ?? 0))}</td>
+        <td class="p-2 text-right">${escapeHtml(String(r?.jobs_written ?? 0))}</td>
+        <td class="p-2 text-left text-xs ${isOk ? "text-slate-400" : "text-red-600"}">
+          ${isOk ? "-" : escapeHtml(errText)}
+        </td>
+      `;
+      body.appendChild(tr);
+    });
   }
 
   const state = {
@@ -699,7 +774,8 @@
     setScanLoading(true, "Refreshing jobs...");
 
     try {
-      const { ok, data } = await fetchJSON("/refresh", { method: "POST", body, signal: state.scanAbort.signal });
+      const endpoint = refreshEndpoint();
+      const { ok, data } = await fetchJSON(endpoint, { method: "POST", body, signal: state.scanAbort.signal });
       if (!ok) {
         const msg = (data && data.error) ? String(data.error) : "Refresh failed";
         setScanMsg(msg, "error");
@@ -707,6 +783,7 @@
       }
 
       const summary = data?.summary || {};
+      renderRefreshReport(data);
       await loadJobsFromDB({ afterRefresh: true, silent: true });
       setScanMsg(
         `Refreshed ${summary.jobs_written ?? state.jobs.length} jobs (${state.newIds.size} new)`,
@@ -736,6 +813,7 @@
     renderJobs();
     setDiscoverMsg("", "info");
     setScanMsg("", "info");
+    renderRefreshReport(null);
   }
 
   function setupSort() {

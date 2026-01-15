@@ -9,7 +9,8 @@
 </head>
 
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 text-slate-900"
-      data-auto-refresh-on-start="{{ '1' if auto_refresh_on_start else '0' }}">
+      data-auto-refresh-on-start="{{ '1' if auto_refresh_on_start else '0' }}"
+      data-refresh-endpoint="{{ '/debug/refresh' if show_refresh_report else '/refresh' }}">
   <div class="max-w-7xl mx-auto p-6">
     <header class="mb-6 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
       <div class="hidden sm:block"></div>
@@ -227,6 +228,64 @@
 
         </div>
       </div>
+
+      {% if show_refresh_report %}
+      <!-- Refresh Report -->
+      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100"
+           id="refreshReportPanel"
+           style="display:none;">
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="font-semibold mb-1">Refresh report</h2>
+          <span id="refreshReportTime" class="text-xs text-gray-500"></span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+          <div class="rounded-xl border border-slate-100 bg-slate-50 p-2">
+            <div class="text-xs text-slate-500">Companies</div>
+            <div class="font-semibold">
+              <span id="reportCompaniesOk">0</span> ok /
+              <span id="reportCompaniesFailed">0</span> failed
+            </div>
+            <div class="text-xs text-slate-500">
+              Total: <span id="reportCompaniesTotal">0</span>
+            </div>
+          </div>
+          <div class="rounded-xl border border-slate-100 bg-slate-50 p-2">
+            <div class="text-xs text-slate-500">Jobs</div>
+            <div class="font-semibold">
+              <span id="reportJobsWritten">0</span> written
+            </div>
+            <div class="text-xs text-slate-500">
+              Fetched: <span id="reportJobsFetched">0</span>
+            </div>
+          </div>
+          <div class="rounded-xl border border-slate-100 bg-slate-50 p-2">
+            <div class="text-xs text-slate-500">Elapsed</div>
+            <div class="font-semibold" id="reportElapsed">0 ms</div>
+          </div>
+          <div class="rounded-xl border border-slate-100 bg-slate-50 p-2">
+            <div class="text-xs text-slate-500">Last run</div>
+            <div class="font-semibold" id="reportLastRun">-</div>
+          </div>
+        </div>
+
+        <div class="overflow-auto max-h-64 rounded-xl border">
+          <table class="w-full text-sm table-fixed">
+            <thead class="sticky top-0 bg-gray-100">
+              <tr>
+                <th class="p-2 text-left">Company</th>
+                <th class="p-2 text-left w-24">Status</th>
+                <th class="p-2 text-right w-20">Fetched</th>
+                <th class="p-2 text-right w-20">Written</th>
+                <th class="p-2 text-left">Error</th>
+              </tr>
+            </thead>
+            <tbody id="refreshReportBody"></tbody>
+          </table>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">Shows the most recent refresh run.</p>
+      </div>
+      {% endif %}
     </section>
 
     <!-- Jobs -->
@@ -289,6 +348,6 @@
       <div id="drawerContent"></div>
     </div>
   </div>
-<script src="/static/app.js?v=2" defer></script>
+<script src="/static/app.js?v=4" defer></script>
 </body>
 </html>

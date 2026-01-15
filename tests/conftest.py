@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import os
 from types import SimpleNamespace
 from typing import Any, Dict, List, Mapping
 
 import pytest
+
+os.environ.setdefault("AUTO_REFRESH_ON_START", "0")
 
 from jobfinder.api import create_app
 

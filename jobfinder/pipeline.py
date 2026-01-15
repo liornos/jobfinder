@@ -266,39 +266,81 @@ def _http_get_json(
         return json.loads(data.decode("utf-8", errors="ignore"))
 
 
+_RESERVED_SLUGS = {
+    "www",
+    "jobs",
+    "job",
+    "career",
+    "careers",
+    "apply",
+    "search",
+    "positions",
+    "position",
+    "en",
+    "en-us",
+    "en_us",
+    "o",
+    "p",  # recruitee / breezy junk
+}
+
+_slug_re = re.compile(r"^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$")
+
+
+def _is_valid_org_slug(slug: str | None) -> bool:
+    if not slug:
+        return False
+    s = slug.strip().lower()
+    if s in _RESERVED_SLUGS:
+        return False
+    # reject too-short 'p', 'o'
+    if len(s) < 3:
+        return False
+    # must contain at least one letter (optional, but helps reject pure numbers)
+    if not any(ch.isalpha() for ch in s):
+        return False
+    return bool(_slug_re.match(s))
+
+
 def _extract_org_from_url(_provider: str, url: str) -> Optional[str]:
     try:
+
+        def _validated_slug(val: Optional[str]) -> Optional[str]:
+            if not val:
+                return None
+            s = val.strip().lower()
+            return s if _is_valid_org_slug(s) else None
+
         p = urlparse(url)
         host = (p.netloc or "").lower()
         segs = [s for s in (p.path or "").split("/") if s]
         if _provider == "comeet" and len(segs) >= 2 and segs[0].lower() == "jobs":
-            return segs[1].lower()
+            return _validated_slug(segs[1])
         if _provider == "icims":
-            org = _extract_icims_org_from_host(host)
+            org = _validated_slug(_extract_icims_org_from_host(host))
             if org:
                 return org
             if segs:
                 first = segs[0].lower()
                 if first not in {"jobs", "career", "careers"}:
-                    return first
+                    return _validated_slug(first)
             return None
         if _provider == "workday":
             if not segs:
-                return _extract_workday_org_from_host(host)
+                return _validated_slug(_extract_workday_org_from_host(host))
             lower_segs = [s.lower() for s in segs]
             if "inline" in lower_segs:
                 idx = lower_segs.index("inline")
                 if len(segs) > idx + 1:
-                    return segs[idx + 1].lower()
+                    return _validated_slug(segs[idx + 1])
             first = lower_segs[0]
             if re.match(r"^[a-z]{2}(-[a-z]{2})?$", first) and len(segs) > 1:
                 second = segs[1].lower()
                 if second not in {"details", "job", "jobs", "apply", "applymanually"}:
-                    return second
+                    return _validated_slug(second)
             if first not in {"careers", "jobs", "job", "details", "apply", "wday"}:
-                return segs[0].lower()
-            return _extract_workday_org_from_host(host)
-        return segs[0].lower() if segs else None
+                return _validated_slug(segs[0])
+            return _validated_slug(_extract_workday_org_from_host(host))
+        return _validated_slug(segs[0]) if segs else None
     except Exception:
         return None
 
