@@ -6,6 +6,8 @@ from jobfinder.pipeline import _is_valid_org_slug
 @pytest.mark.parametrize(
     "slug",
     [
+        "vi",
+        "ai",
         "jfrog",
         "catonetworks",
         "paloaltonetworks2",
@@ -34,6 +36,7 @@ def test_slug_valid(slug: str):
         "en-us",
         "12",
         "123",  # no letters
+        "a1",  # only one letter
         "-bad",
         "bad-",
         "_bad",

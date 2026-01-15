@@ -283,7 +283,7 @@ _RESERVED_SLUGS = {
     "p",  # recruitee / breezy junk
 }
 
-_slug_re = re.compile(r"^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$")
+_slug_re = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])$")
 
 
 def _is_valid_org_slug(slug: str | None) -> bool:
@@ -292,11 +292,11 @@ def _is_valid_org_slug(slug: str | None) -> bool:
     s = slug.strip().lower()
     if s in _RESERVED_SLUGS:
         return False
-    # reject too-short 'p', 'o'
-    if len(s) < 3:
+    # reject too-short 1-letter slugs
+    if len(s) < 2:
         return False
-    # must contain at least one letter (optional, but helps reject pure numbers)
-    if not any(ch.isalpha() for ch in s):
+    # must contain at least two letters (rejects numeric-only and 1-letter combos)
+    if sum(1 for ch in s if ch.isalpha()) < 2:
         return False
     return bool(_slug_re.match(s))
 
