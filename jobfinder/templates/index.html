@@ -10,7 +10,8 @@
 
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 text-slate-900"
       data-auto-refresh-on-start="{{ '1' if auto_refresh_on_start else '0' }}"
-      data-refresh-endpoint="{{ '/debug/refresh' if show_refresh_report else '/refresh' }}">
+      data-refresh-endpoint="{{ '/debug/refresh' if show_refresh_report else '/refresh' }}"
+      data-testid="jobfinder-page">
   <div class="max-w-7xl mx-auto p-6">
     <header class="mb-6 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
       <div class="hidden sm:block"></div>
@@ -43,7 +44,8 @@
         <label for="citiesSelect" class="block text-sm font-medium">Cities</label>
         <select id="citiesSelect"
                 data-default-cities="Tel Aviv, Herzliya"
-                class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+                class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                data-testid="city-select">
           <option value="">Choose a city or district</option>
           <option value="__all__">Israel - All</option>
           <optgroup label="Cities">
@@ -74,9 +76,9 @@
         </select>
         <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
           <span>Selected</span>
-          <button id="citiesClear" type="button" class="hover:text-slate-700">Clear</button>
+          <button id="citiesClear" type="button" class="hover:text-slate-700" data-testid="cities-clear">Clear</button>
         </div>
-        <div id="citiesSelected" class="mt-1 mb-2 flex flex-wrap gap-2"></div>
+        <div id="citiesSelected" class="mt-1 mb-2 flex flex-wrap gap-2" data-testid="cities-selected"></div>
 
         <label for="keywords" class="block text-sm font-medium">Company type</label>
         <input id="keywords"
@@ -129,17 +131,18 @@
 
         <button id="btnDiscover" type="button"
                 class="w-full mt-4 rounded-2xl px-3 py-2 bg-gradient-to-r from-emerald-500 to-blue-500 text-white flex items-center justify-center gap-2
-                       hover:shadow-lg hover:shadow-emerald-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+                       hover:shadow-lg hover:shadow-emerald-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                data-testid="discover-button">
           <span id="discoverBtnText">Discover companies</span>
           <span id="discoverSpinner"
                 class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
         </button>
 
-        <p id="discoverMsg" class="text-base font-semibold mt-3" role="status" aria-live="polite"></p>
+        <p id="discoverMsg" class="text-base font-semibold mt-3" role="status" aria-live="polite" data-testid="discover-message"></p>
       </div>
 
       <!-- Companies -->
-      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100" id="companiesPanel" style="display:none;">
+      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100" id="companiesPanel" style="display:none;" data-testid="companies-panel">
         <div class="flex items-center justify-between mb-2">
           <h2 class="font-semibold">Companies</h2>
           <div class="space-x-2">
@@ -151,14 +154,14 @@
         </div>
 
         <div class="overflow-auto max-h-64 rounded-xl border">
-          <table class="w-full text-sm table-fixed" id="companiesTable">
+          <table class="w-full text-sm table-fixed" id="companiesTable" data-testid="companies-table">
             <thead class="sticky top-0 bg-gray-100">
               <tr>
-                <th class="p-2 w-10"><input type="checkbox" id="selectAll" class="h-4 w-4 accent-black"></th>
+                <th class="p-2 w-10"><input type="checkbox" id="selectAll" class="h-4 w-4 accent-black" data-testid="companies-select-all"></th>
                 <th class="p-2 text-left">Name</th>
               </tr>
             </thead>
-            <tbody id="companiesBody"></tbody>
+            <tbody id="companiesBody" data-testid="companies-body"></tbody>
           </table>
         </div>
 
@@ -166,7 +169,7 @@
       </div>
 
       <!-- Refresh & Filters -->
-      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100" id="scanFiltersPanel" style="display:none;">
+      <div class="p-4 bg-white/95 border border-blue-50 rounded-2xl shadow-xl shadow-blue-100" id="scanFiltersPanel" style="display:none;" data-testid="refresh-panel">
         <div class="flex items-start justify-between">
           <h2 class="font-semibold mb-2">Refresh & Filters</h2>
           <span class="text-xs text-gray-500">Refresh stores to DB; filters query the DB</span>
@@ -189,7 +192,8 @@
         <div class="mt-3">
           <label for="fltTitle" class="block text-sm font-medium">Title keywords</label>
           <input id="fltTitle" type="text" placeholder="software engineer, automation, qa"
-                 class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20">
+                 class="w-full border rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
+                 data-testid="title-filter">
         </div>
 
         <details class="mt-3">
@@ -219,12 +223,13 @@
           <button id="btnScanSelected" type="button"
                   class="w-full rounded-2xl px-3 py-2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white flex items-center justify-center gap-2
                          hover:shadow-lg hover:shadow-cyan-200 active:opacity-90 focus:outline-none focus:ring-2 focus:ring-cyan-200"
-                  aria-live="polite">
+                  aria-live="polite"
+                  data-testid="refresh-button">
             <span id="scanBtnText">Refresh jobs</span>
             <span id="scanSpinner" class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           </button>
 
-          <p id="scanMsg" class="text-sm text-gray-600 mt-2" role="status" aria-live="polite"></p>
+          <p id="scanMsg" class="text-sm text-gray-600 mt-2" role="status" aria-live="polite" data-testid="refresh-message"></p>
 
         </div>
       </div>
@@ -294,7 +299,7 @@
         <div class="font-semibold">Jobs</div>
 
         <div class="flex flex-wrap items-center gap-2 text-sm">
-          <div><span id="jobsCount">0</span> results (<span id="newCount">0</span> new)</div>
+          <div><span id="jobsCount" data-testid="jobs-count">0</span> results (<span id="newCount">0</span> new)</div>
 
           <label class="inline-flex items-center gap-2">
             <span>Page size</span>
@@ -318,7 +323,7 @@
       </div>
 
       <div class="overflow-auto rounded-xl border">
-        <table class="min-w-full text-sm" id="jobsTable">
+        <table class="min-w-full text-sm" id="jobsTable" data-testid="jobs-table">
           <thead class="bg-gray-100 sticky top-0">
             <tr>
               <th class="p-2 sort cursor-pointer select-none" data-key="score" title="Sort by score">Score</th>
@@ -330,7 +335,7 @@
               <th class="p-2">Link</th>
             </tr>
           </thead>
-          <tbody id="jobsBody"></tbody>
+          <tbody id="jobsBody" data-testid="jobs-body"></tbody>
         </table>
       </div>
 

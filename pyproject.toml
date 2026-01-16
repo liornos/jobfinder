@@ -33,6 +33,7 @@ dev = [
 ]
 e2e = [
     "playwright>=1.43.0",
+    "pytest-playwright>=0.5.1",
 ]
 [project.scripts]
 jobfinder = "jobfinder.cli:app"
