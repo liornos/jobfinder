@@ -215,6 +215,7 @@
 
     if (cities.length) params.set("cities", cities.join(","));
     if (titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
+    params.set("fast", "1");
     params.set("limit", "200");
 
     return params;

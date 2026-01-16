@@ -1132,6 +1132,7 @@ def query_jobs(
     max_age_days: Optional[int] = None,
     cities: Optional[List[Any]] = None,
     keywords: Optional[List[Any]] = None,
+    compute_scores: Optional[bool] = None,
     title_keywords: Optional[List[Any]] = None,
     orgs: Optional[List[Any]] = None,
     company_names: Optional[List[Any]] = None,
@@ -1148,6 +1149,11 @@ def query_jobs(
     cities_list = _expand_city_aliases(_as_str_list(cities))
     keywords_list = _as_str_list(keywords)
     title_kw_list = _as_str_list(title_keywords)
+    compute_needed = bool(keywords_list) or int(min_score or 0) > 0
+    if compute_scores is None:
+        compute_scores = compute_needed
+    else:
+        compute_scores = bool(compute_scores)
     prov_filter = (str(provider).strip().lower()) if provider else None
     org_set = {s.lower() for s in _as_str_list(orgs)} if orgs else set()
     company_name_set = (
@@ -1187,12 +1193,13 @@ def query_jobs(
 
             jobs_batch = [db.job_to_dict(r) for r in rows]
 
-            # Recompute score at query-time so filters reflect the active keyword set.
-            for j in jobs_batch:
-                score_val, reasons = _compute_score(j, keywords_list, cities_list)
-                j["score"] = score_val
-                if reasons:
-                    j["reasons"] = reasons
+            if compute_scores:
+                # Recompute score at query-time so filters reflect the active keyword set.
+                for j in jobs_batch:
+                    score_val, reasons = _compute_score(j, keywords_list, cities_list)
+                    j["score"] = score_val
+                    if reasons:
+                        j["reasons"] = reasons
 
             jobs_batch = _apply_filters_compat(
                 jobs_batch,
