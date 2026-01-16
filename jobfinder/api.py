@@ -55,6 +55,19 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def _parse_bool(value: Any) -> Optional[bool]:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    sval = str(value).strip().lower()
+    if sval in {"1", "true", "yes", "y", "on"}:
+        return True
+    if sval in {"0", "false", "no", "n", "off"}:
+        return False
+    return None
+
+
 def _run_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
     try:
         companies = load_companies()
@@ -466,13 +479,17 @@ def jobs() -> Any:
     company_names = _parse_list(
         args.getlist("company_names") or args.get("company_names")
     )
+    compute_scores = _parse_bool(args.get("compute_scores"))
+    fast = _parse_bool(args.get("fast"))
+    if fast is True and compute_scores is None:
+        compute_scores = False
     only_active = str(args.get("active") or "true").lower() not in {"0", "false", "no"}
     limit_raw = int(args.get("limit") or 500)
     limit = max(1, min(limit_raw, 2000))
     offset = int(args.get("offset") or 0)
 
     log.info(
-        "API /jobs called | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | limit=%s offset=%s",
+        "API /jobs called | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | limit=%s offset=%s | compute_scores=%s",
         provider,
         remote,
         min_score,
@@ -485,6 +502,7 @@ def jobs() -> Any:
         only_active,
         limit,
         offset,
+        compute_scores,
     )
 
     try:
@@ -495,6 +513,7 @@ def jobs() -> Any:
             max_age_days=max_age_days,
             cities=cities,
             keywords=keywords,
+            compute_scores=compute_scores,
             title_keywords=title_keywords,
             orgs=orgs,
             company_names=company_names,

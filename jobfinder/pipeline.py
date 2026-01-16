@@ -283,7 +283,7 @@ _RESERVED_SLUGS = {
     "p",  # recruitee / breezy junk
 }
 
-_slug_re = re.compile(r"^[a-z0-9][a-z0-9_-]{1,62}[a-z0-9]$")
+_slug_re = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])$")
 
 
 def _is_valid_org_slug(slug: str | None) -> bool:
@@ -292,11 +292,11 @@ def _is_valid_org_slug(slug: str | None) -> bool:
     s = slug.strip().lower()
     if s in _RESERVED_SLUGS:
         return False
-    # reject too-short 'p', 'o'
-    if len(s) < 3:
+    # reject too-short 1-letter slugs
+    if len(s) < 2:
         return False
-    # must contain at least one letter (optional, but helps reject pure numbers)
-    if not any(ch.isalpha() for ch in s):
+    # must contain at least two letters (rejects numeric-only and 1-letter combos)
+    if sum(1 for ch in s if ch.isalpha()) < 2:
         return False
     return bool(_slug_re.match(s))
 
@@ -1132,6 +1132,7 @@ def query_jobs(
     max_age_days: Optional[int] = None,
     cities: Optional[List[Any]] = None,
     keywords: Optional[List[Any]] = None,
+    compute_scores: Optional[bool] = None,
     title_keywords: Optional[List[Any]] = None,
     orgs: Optional[List[Any]] = None,
     company_names: Optional[List[Any]] = None,
@@ -1148,6 +1149,11 @@ def query_jobs(
     cities_list = _expand_city_aliases(_as_str_list(cities))
     keywords_list = _as_str_list(keywords)
     title_kw_list = _as_str_list(title_keywords)
+    compute_needed = bool(keywords_list) or int(min_score or 0) > 0
+    if compute_scores is None:
+        compute_scores = compute_needed
+    else:
+        compute_scores = bool(compute_scores)
     prov_filter = (str(provider).strip().lower()) if provider else None
     org_set = {s.lower() for s in _as_str_list(orgs)} if orgs else set()
     company_name_set = (
@@ -1187,12 +1193,13 @@ def query_jobs(
 
             jobs_batch = [db.job_to_dict(r) for r in rows]
 
-            # Recompute score at query-time so filters reflect the active keyword set.
-            for j in jobs_batch:
-                score_val, reasons = _compute_score(j, keywords_list, cities_list)
-                j["score"] = score_val
-                if reasons:
-                    j["reasons"] = reasons
+            if compute_scores:
+                # Recompute score at query-time so filters reflect the active keyword set.
+                for j in jobs_batch:
+                    score_val, reasons = _compute_score(j, keywords_list, cities_list)
+                    j["score"] = score_val
+                    if reasons:
+                        j["reasons"] = reasons
 
             jobs_batch = _apply_filters_compat(
                 jobs_batch,
