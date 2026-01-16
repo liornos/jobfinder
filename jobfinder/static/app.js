@@ -285,6 +285,7 @@
 
     state.companies.forEach((c, i) => {
       const tr = document.createElement("tr");
+      tr.setAttribute("data-testid", "company-row");
       tr.innerHTML = `
         <td class="p-2"><input type="checkbox" class="rowSel" data-i="${i}"></td>
         <td class="p-2">${escapeHtml(c.name || "")}</td>
@@ -393,6 +394,7 @@
     body.innerHTML = "";
     for (const j of rows) {
       const tr = document.createElement("tr");
+      tr.setAttribute("data-testid", "job-row");
       tr.className = "hover:bg-gray-50 cursor-pointer";
       tr.addEventListener("click", () => openDrawer(j));
       tr.innerHTML = `
@@ -580,6 +582,8 @@
     const key = city.toLowerCase();
     cityState.selected = cityState.selected.filter((item) => item.toLowerCase() !== key);
     renderSelectedCities();
+    state.page = 1;
+    loadJobsFromDB({ silent: true });
   }
 
   function getSelectedCities() {
@@ -605,11 +609,15 @@
         addCitiesToSelection(value);
       }
       select.value = "";
+      state.page = 1;
+      loadJobsFromDB({ silent: true });
     });
 
     qs("#citiesClear")?.addEventListener("click", () => {
       clearSelectedCities();
       select.focus();
+      state.page = 1;
+      loadJobsFromDB({ silent: true });
     });
   }
 

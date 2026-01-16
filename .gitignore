@@ -31,3 +31,5 @@ Thumbs.db
 # IGNORE LOCAL
 .idea/
 .venv/
+.serpapi_cache/
+jobfinder.db
