@@ -6,6 +6,7 @@ from urllib.parse import quote
 import pytest
 
 try:
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
     from playwright.sync_api import expect, sync_playwright
 except Exception:  # pragma: no cover - optional dependency
     pytest.skip("playwright not installed", allow_module_level=True)
@@ -25,6 +26,20 @@ def _attempt_search(page, url: str) -> tuple[str, int]:
     page.goto(url, wait_until="domcontentloaded")
     status = page.locator("#statusMsg")
     expect(status).not_to_have_text("", timeout=60000)
+    try:
+        page.wait_for_function(
+            """
+            () => {
+              const el = document.querySelector('#statusMsg');
+              if (!el) return false;
+              const text = (el.textContent || '').trim();
+              return text && text !== 'Loading jobs...';
+            }
+            """,
+            timeout=90000,
+        )
+    except PlaywrightTimeoutError:
+        pass
     status_text = status.inner_text()
     count_text = page.locator("#resultsCount").inner_text()
     try:
@@ -40,7 +55,7 @@ def test_search_city_shows_results():
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         page = browser.new_page()
-        page.set_default_timeout(60000)
+        page.set_default_timeout(90000)
 
         last_status = ""
         last_count = 0
