@@ -38,4 +38,4 @@ jobs:
           RUN_PROD_SMOKE: "1"
           JOBFINDER_SMOKE_URL: "https://jobfinder-8def.onrender.com"
           JOBFINDER_SMOKE_CITY: "Tel Aviv"
-        run: pytest tests/smoke/test_prod_search_smoke.py -q
+        run: pytest tests/smoke -q --confcutdir=tests/smoke
