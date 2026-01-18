@@ -5,6 +5,10 @@ on:
     - cron: "0 6 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -33,9 +37,98 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest playwright
           python -m playwright install --with-deps chromium
+      - name: Prepare test reports
+        run: mkdir -p reports
       - name: Search Tel Aviv smoke
         env:
           RUN_PROD_SMOKE: "1"
           JOBFINDER_SMOKE_URL: "https://jobfinder-8def.onrender.com"
           JOBFINDER_SMOKE_CITY: "Tel Aviv"
-        run: pytest tests/smoke -q --confcutdir=tests/smoke
+        run: pytest tests/smoke -q --confcutdir=tests/smoke --junitxml=reports/junit-smoke.xml
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Smoke Tests
+          path: reports/junit-*.xml
+          reporter: java-junit
+          fail-on-error: true
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports
+          path: |
+            reports/*.xml
+            test-results/**
+            playwright-report/**
+          if-no-files-found: ignore
+      - name: Test summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import glob
+          import os
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+          files = sorted(glob.glob("reports/junit-*.xml"))
+          if not files:
+              text = "## Test Summary\n\nNo JUnit XML files found.\n"
+              if summary_path:
+                  Path(summary_path).write_text(text, encoding="utf-8")
+              else:
+                  print(text)
+              raise SystemExit(0)
+
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+
+          def add_suite(elem):
+              totals["tests"] += int(elem.attrib.get("tests", 0))
+              totals["failures"] += int(elem.attrib.get("failures", 0))
+              totals["errors"] += int(elem.attrib.get("errors", 0))
+              totals["skipped"] += int(elem.attrib.get("skipped", 0))
+
+          for filename in files:
+              try:
+                  root = ET.parse(filename).getroot()
+              except Exception:
+                  continue
+              if root.tag == "testsuite":
+                  add_suite(root)
+              else:
+                  for suite in root.findall("testsuite"):
+                      add_suite(suite)
+
+          passed = (
+              totals["tests"]
+              - totals["failures"]
+              - totals["errors"]
+              - totals["skipped"]
+          )
+
+          lines = [
+              "## Test Summary",
+              "",
+              "| Metric | Count |",
+              "| --- | ---: |",
+              f"| Tests | {totals['tests']} |",
+              f"| Passed | {passed} |",
+              f"| Failures | {totals['failures']} |",
+              f"| Errors | {totals['errors']} |",
+              f"| Skipped | {totals['skipped']} |",
+              "",
+              "Reports:",
+              "",
+              *[f"- `{name}`" for name in files],
+              "",
+              "See the **Smoke Tests** check run for details.",
+          ]
+
+          content = "\n".join(lines) + "\n"
+          if summary_path:
+              Path(summary_path).write_text(content, encoding="utf-8")
+          else:
+              print(content)
+          PY
