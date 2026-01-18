@@ -13,7 +13,7 @@
   const CITY_ALL_VALUE = "__all__";
   const CITY_ALL_LABEL = "Israel - All";
   const DEFAULT_LIMIT = 200;
-  const BASE_LIMIT = 200;
+  const BASE_LIMIT = 600;
 
   const cityState = {
     selected: [],
@@ -313,11 +313,12 @@
     if (countEl) countEl.textContent = String(state.jobs.length);
   }
 
-  async function fetchJobs() {
+  async function fetchJobs({ forceServer = false } = {}) {
     if (state.inFlight) return;
     const ctx = getSearchContext();
 
-    if (applyCachedFilter(ctx, { updateStatus: true })) return;
+    const cachedApplied = applyCachedFilter(ctx, { updateStatus: !forceServer });
+    if (cachedApplied && !forceServer) return;
 
     if (!ctx.hasCityFilter) {
       state.baseJobs = [];
@@ -326,9 +327,13 @@
 
     state.inFlight = true;
     setLoading(true);
-    setStatus("Loading jobs...", "info");
+    setStatus(
+      cachedApplied && forceServer ? "Searching more jobs..." : "Loading jobs...",
+      "info"
+    );
 
-    const query = ctx.hasCityFilter
+    const includeTitle = !ctx.hasCityFilter || (forceServer && ctx.titleKeywords.length);
+    const query = ctx.hasCityFilter && !includeTitle
       ? buildQuery({ includeTitle: false, limit: BASE_LIMIT })
       : buildQuery({ includeTitle: true, limit: DEFAULT_LIMIT });
     const url = `/jobs?${query.params.toString()}`;
@@ -350,7 +355,7 @@
       }
 
       const results = data?.results || [];
-      if (ctx.hasCityFilter) {
+      if (ctx.hasCityFilter && !includeTitle) {
         state.baseJobs = results;
         state.baseCitiesKey = ctx.citiesKey;
         state.jobs = filterByTitleKeywords(state.baseJobs, ctx.titleKeywords);
@@ -400,13 +405,13 @@
       if (input) input.value = title;
     }
 
-    if (city || title) fetchJobs();
+    if (city || title) fetchJobs({ forceServer: true });
   }
 
   function init() {
     qs("#searchForm")?.addEventListener("submit", (e) => {
       e.preventDefault();
-      fetchJobs();
+      fetchJobs({ forceServer: true });
     });
     setupCitySelect();
     setupTitleInput();
