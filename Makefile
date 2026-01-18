@@ -1,4 +1,4 @@
-.PHONY: venv install lint format type test test-cov
+.PHONY: venv install lint format fmt type test test-cov ci
 
 VENV ?= .venv
 PY ?= py
@@ -17,6 +17,9 @@ lint: $(VENV_PY)
 	$(VENV_PY) -m ruff check .
 
 format: $(VENV_PY)
+	$(VENV_PY) -m ruff format --check .
+
+fmt: $(VENV_PY)
 	$(VENV_PY) -m ruff format .
 
 type: $(VENV_PY)
@@ -27,3 +30,5 @@ test: $(VENV_PY)
 
 test-cov: $(VENV_PY)
 	$(VENV_PY) -m pytest -q --cov=jobfinder --cov-report=term-missing
+
+ci: lint format type test
