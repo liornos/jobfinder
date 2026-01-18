@@ -5,11 +5,15 @@
 
   const state = {
     jobs: [],
+    baseJobs: [],
+    baseCitiesKey: "",
     inFlight: false,
   };
 
   const CITY_ALL_VALUE = "__all__";
   const CITY_ALL_LABEL = "Israel - All";
+  const DEFAULT_LIMIT = 200;
+  const BASE_LIMIT = 200;
 
   const cityState = {
     selected: [],
@@ -208,17 +212,62 @@
     return parts.map((s) => s.trim()).filter(Boolean);
   }
 
-  function buildQuery() {
+  function normalizeText(value) {
+    return (value ?? "").toString().toLowerCase().replace(/\s+/g, " ").trim();
+  }
+
+  function filterByTitleKeywords(rows, keywords) {
+    const needles = (keywords || []).map(normalizeText).filter(Boolean);
+    if (!needles.length) return rows || [];
+    return (rows || []).filter((row) => {
+      const title = normalizeText(row?.title || "");
+      return needles.some((needle) => title.includes(needle));
+    });
+  }
+
+  function buildCitiesKey(cities) {
+    return (cities || [])
+      .map((city) => normalizeText(city))
+      .filter(Boolean)
+      .sort()
+      .join("|");
+  }
+
+  function buildQuery({ includeTitle = true, limit = DEFAULT_LIMIT } = {}) {
     const params = new URLSearchParams();
     const cities = getSelectedCities();
     const titleKeywords = parseTitleKeywords(qs("#titleInput")?.value || "");
 
     if (cities.length) params.set("cities", cities.join(","));
-    if (titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
+    if (includeTitle && titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
     params.set("fast", "1");
-    params.set("limit", "200");
+    params.set("limit", String(limit));
 
-    return params;
+    return { params, cities, titleKeywords };
+  }
+
+  function getSearchContext() {
+    const { cities, titleKeywords } = buildQuery({ includeTitle: false, limit: BASE_LIMIT });
+    const hasCityFilter = cities.length > 0;
+    const citiesKey = hasCityFilter ? buildCitiesKey(cities) : "";
+    return { cities, titleKeywords, hasCityFilter, citiesKey };
+  }
+
+  function applyCachedFilter(ctx, { updateStatus = true } = {}) {
+    if (!ctx.hasCityFilter || state.baseCitiesKey !== ctx.citiesKey) return false;
+    state.jobs = filterByTitleKeywords(state.baseJobs, ctx.titleKeywords);
+    renderResults();
+    if (!updateStatus) return true;
+
+    if (state.jobs.length) {
+      const msg = ctx.titleKeywords.length
+        ? `Filtered ${state.jobs.length} jobs`
+        : `Loaded ${state.jobs.length} jobs`;
+      setStatus(msg, "ok");
+    } else {
+      setStatus("No jobs found", "info");
+    }
+    return true;
   }
 
   function renderResults() {
@@ -266,12 +315,23 @@
 
   async function fetchJobs() {
     if (state.inFlight) return;
+    const ctx = getSearchContext();
+
+    if (applyCachedFilter(ctx, { updateStatus: true })) return;
+
+    if (!ctx.hasCityFilter) {
+      state.baseJobs = [];
+      state.baseCitiesKey = "";
+    }
+
     state.inFlight = true;
     setLoading(true);
     setStatus("Loading jobs...", "info");
 
-    const params = buildQuery();
-    const url = `/jobs?${params.toString()}`;
+    const query = ctx.hasCityFilter
+      ? buildQuery({ includeTitle: false, limit: BASE_LIMIT })
+      : buildQuery({ includeTitle: true, limit: DEFAULT_LIMIT });
+    const url = `/jobs?${query.params.toString()}`;
 
     try {
       const resp = await fetch(url);
@@ -289,18 +349,37 @@
         return;
       }
 
-      state.jobs = data?.results || [];
+      const results = data?.results || [];
+      if (ctx.hasCityFilter) {
+        state.baseJobs = results;
+        state.baseCitiesKey = ctx.citiesKey;
+        state.jobs = filterByTitleKeywords(state.baseJobs, ctx.titleKeywords);
+      } else {
+        state.jobs = results;
+      }
+
       renderResults();
-      setStatus(
-        state.jobs.length ? `Loaded ${state.jobs.length} jobs` : "No jobs found",
-        state.jobs.length ? "ok" : "info"
-      );
+      const count = state.jobs.length;
+      const msg = count
+        ? (ctx.hasCityFilter && ctx.titleKeywords.length ? `Filtered ${count} jobs` : `Loaded ${count} jobs`)
+        : "No jobs found";
+      setStatus(msg, count ? "ok" : "info");
     } catch (e) {
       setStatus("Failed to load jobs", "error");
     } finally {
       state.inFlight = false;
       setLoading(false);
     }
+  }
+
+  function setupTitleInput() {
+    const input = qs("#titleInput");
+    if (!input) return;
+    input.addEventListener("input", () => {
+      if (state.inFlight) return;
+      const ctx = getSearchContext();
+      applyCachedFilter(ctx, { updateStatus: true });
+    });
   }
 
   function loadFromQuery() {
@@ -330,6 +409,7 @@
       fetchJobs();
     });
     setupCitySelect();
+    setupTitleInput();
     renderSelectedCities();
     renderResults();
     loadFromQuery();
