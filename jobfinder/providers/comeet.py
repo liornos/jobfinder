@@ -95,12 +95,20 @@ def fetch_jobs(
         return []
 
     positions: List[Dict[str, Any]] = []
+    raw_positions: Any = []
     if isinstance(data, list):
-        positions = data
+        raw_positions = data
     elif isinstance(data, dict):
-        positions = data.get("positions") or data.get("data") or []
-        if isinstance(positions, dict):
-            positions = positions.get("positions") or positions.get("data") or []
+        raw_positions = data.get("positions") or data.get("data") or []
+        if isinstance(raw_positions, dict):
+            raw_positions = (
+                raw_positions.get("positions") or raw_positions.get("data") or []
+            )
+
+    if isinstance(raw_positions, list):
+        positions = [p for p in raw_positions if isinstance(p, dict)]
+    elif isinstance(raw_positions, dict):
+        positions = [p for p in raw_positions.values() if isinstance(p, dict)]
 
     jobs: List[Dict[str, Any]] = []
     for j in positions or []:

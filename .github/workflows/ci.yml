@@ -26,6 +26,8 @@ jobs:
         run: ruff check .
       - name: Format check
         run: ruff format --check .
+      - name: Type check
+        run: mypy jobfinder tests
       - name: Unit tests
         run: pytest tests/unit tests/test_filtering.py --cov=jobfinder --cov-report=term
       - name: Integration tests

@@ -41,7 +41,7 @@ def setup_logging(default_level: str | None = None) -> None:
         h.addFilter(_ContextDefaultsFilter())
         root.addHandler(h)
     else:
-        for h in root.handlers:
-            if not any(isinstance(f, _ContextDefaultsFilter) for f in h.filters):
-                h.addFilter(_ContextDefaultsFilter())
+        for handler in root.handlers:
+            if not any(isinstance(f, _ContextDefaultsFilter) for f in handler.filters):
+                handler.addFilter(_ContextDefaultsFilter())
     root.setLevel(level)

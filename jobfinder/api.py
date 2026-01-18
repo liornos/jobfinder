@@ -332,14 +332,16 @@ def _refresh_with_report(
 
     for res in fetch_results:
         idx = int(res.get("index") or 0)
+        jobs_fetched = int(res.get("jobs_fetched") or 0)
+        elapsed_ms = int(res.get("elapsed_fetch_ms") or 0)
         item = {
             "name": res.get("name") or "unknown",
             "provider": res.get("provider"),
             "org": res.get("org"),
             "status": res.get("status") or "error",
-            "jobs_fetched": int(res.get("jobs_fetched") or 0),
+            "jobs_fetched": jobs_fetched,
             "jobs_written": 0,
-            "elapsed_ms": int(res.get("elapsed_fetch_ms") or 0),
+            "elapsed_ms": elapsed_ms,
         }
 
         if item["status"] != "ok":
@@ -356,7 +358,7 @@ def _refresh_with_report(
             report_by_index[idx] = item
             continue
 
-        jobs_fetched_total += item["jobs_fetched"]
+        jobs_fetched_total += jobs_fetched
         company_payload = res.get("company_payload")
         if not isinstance(company_payload, dict):
             companies_failed += 1
@@ -383,9 +385,8 @@ def _refresh_with_report(
             companies_failed += 1
             item["status"] = "error"
             item["error"] = str(exc)
-        item["elapsed_ms"] = item["elapsed_ms"] + int(
-            (time.perf_counter() - t_write) * 1000
-        )
+        elapsed_ms += int((time.perf_counter() - t_write) * 1000)
+        item["elapsed_ms"] = elapsed_ms
         report_by_index[idx] = item
 
     report = [r for r in report_by_index if r is not None]
