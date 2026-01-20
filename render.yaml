@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: jobfinder
+    env: python
+    buildCommand: pip install -e .
+    startCommand: "gunicorn jobfinder.api:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
+    envVars:
+      - key: WEB_CONCURRENCY
+        value: "1"

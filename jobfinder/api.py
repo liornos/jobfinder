@@ -8,6 +8,7 @@ import logging
 import os
 import threading
 import time
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,6 +26,7 @@ except Exception:
 
 from . import db, filtering, pipeline
 from .alerts.companies import load_companies
+from .alerts.state import AlertState
 from .config import load_config
 from .logging_utils import setup_logging
 
@@ -485,12 +487,13 @@ def jobs() -> Any:
     if fast is True and compute_scores is None:
         compute_scores = False
     only_active = str(args.get("active") or "true").lower() not in {"0", "false", "no"}
+    only_new = _parse_bool(args.get("only_new")) is True
     limit_raw = int(args.get("limit") or 500)
     limit = max(1, min(limit_raw, 2000))
     offset = int(args.get("offset") or 0)
 
     log.info(
-        "API /jobs called | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | limit=%s offset=%s | compute_scores=%s",
+        "API /jobs called | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | only_new=%s | limit=%s offset=%s | compute_scores=%s",
         provider,
         remote,
         min_score,
@@ -501,6 +504,7 @@ def jobs() -> Any:
         orgs,
         company_names,
         only_active,
+        only_new,
         limit,
         offset,
         compute_scores,
@@ -522,6 +526,25 @@ def jobs() -> Any:
             limit=limit,
             offset=offset,
         )
+        if only_new:
+            state_db = Path(
+                os.environ.get("ALERT_STATE_DB", "/tmp/jobfinder_alerts.sqlite")
+            )
+            state = AlertState(state_db)
+            ids = []
+            for job in results:
+                job_id = job.get("id") or job.get("url")
+                if job_id:
+                    ids.append(str(job_id))
+            if ids:
+                seen = state.already_seen(ids)
+                results = [
+                    job
+                    for job in results
+                    if str(job.get("id") or job.get("url") or "") not in seen
+                ]
+            else:
+                results = []
     except Exception as e:
         log.exception("API /jobs failed: %s", e)
         return jsonify({"error": str(e)}), 500

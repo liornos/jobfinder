@@ -206,6 +206,9 @@ id,title,company,url,location,remote,created_at,provider,extra,score,reasons
 - Empty `/scan` results -> verify:
   - `provider` in `{greenhouse, lever}`
   - `org` is the board slug
+- Render memory restarts (Starter 512MB) -> run Gunicorn with a single worker and limit concurrency:
+  - Start Command: `gunicorn jobfinder.api:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120`
+  - If `WEB_CONCURRENCY` is set, force it to `1`
 
 ---
 
