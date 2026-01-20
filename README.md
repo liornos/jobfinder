@@ -52,6 +52,8 @@ Without a SerpAPI key, the UI still works using the bundled seed `static/compani
 - `SERPAPI_CACHE_TTL_SECONDS` - optional local cache TTL for SerpAPI responses (default 86400; set 0 to disable)
 - `SERPAPI_CACHE_DIR` - optional local cache directory (default `.serpapi_cache` in cwd)
 - `HOST`, `PORT` - optional Flask bind (defaults to `0.0.0.0:8000`)
+- `AUTO_REFRESH_ON_START` - optional: server-side startup refresh (default true)
+- `ALLOW_REFRESH_ENDPOINT` - optional: enable `POST /refresh` and `POST /debug/refresh` (default false)
 - `.env` supported
 
 Local SerpAPI cache is enabled by default unless `SERPAPI_CACHE_TTL_SECONDS=0` or `SERPAPI_NO_CACHE=true`.
@@ -112,7 +114,7 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 
 - Endpoints:
   - `POST /discover` (requires `SERPAPI_API_KEY`)
-  - `POST /refresh` → fetch from providers and upsert into the DB
+  - `POST /refresh` → fetch from providers and upsert into the DB (disabled unless `ALLOW_REFRESH_ENDPOINT=1`)
   - `GET /jobs` → query jobs from the DB with filters (provider/remote/min_score/max_age_days/cities/keywords/active/limit/offset)
   - `POST /scan` (legacy passthrough to providers; kept for compatibility)
   - `GET /healthz`
@@ -120,7 +122,7 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 - Quick curls:
   - Health: `curl -s http://localhost:8000/healthz`
   - Discover: `curl -s -X POST http://localhost:8000/discover -H "Content-Type: application/json" -d '{"cities":["Tel Aviv"],"keywords":["software"],"sources":["greenhouse","lever"],"limit":10}'`
-  - Refresh: `curl -s -X POST http://localhost:8000/refresh -H "Content-Type: application/json" -d '{"cities":["Tel Aviv"],"keywords":["python"],"companies":[{"name":"Acme","provider":"greenhouse","org":"acme"}]}'`
+  - Refresh (requires `ALLOW_REFRESH_ENDPOINT=1`): `curl -s -X POST http://localhost:8000/refresh -H "Content-Type: application/json" -d '{"cities":["Tel Aviv"],"keywords":["python"],"companies":[{"name":"Acme","provider":"greenhouse","org":"acme"}]}'`
   - Jobs query: `curl -s "http://localhost:8000/jobs?cities=Tel%20Aviv&remote=any&min_score=0&limit=50"`
 
 ## Database-backed flow
@@ -129,6 +131,14 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 - Install Postgres driver when needed: `pip install -e .[pg]` (uses `psycopg[binary]`).
 - Recommended UI flow: Discover → select companies → **Refresh** (stores into DB) → Filters call `/jobs` (DB-only, no provider HTTP calls).
 
+## Scheduled refresh (Render Cron Job)
+
+Keep the web service lightweight (UI + DB queries) and run refresh as a scheduled job:
+```bash
+jobfinder refresh
+```
+Optional flags: `--cities "Tel Aviv" --keywords "python" --companies-path static/companies.json`
+
 ---
 
 ## CLI
@@ -136,6 +146,7 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 - `jobfinder --help` (and subcommands) for options.
 - Discover example: `jobfinder discover --cities "Tel Aviv,New York" --keywords "software,ai" --sources greenhouse,lever --limit 50 --out companies.csv`
 - Scan example: `jobfinder scan --companies-file data/companies.example.csv --keywords "python,data" --cities "Tel Aviv,New York" --out jobs.csv`
+- Refresh example: `jobfinder refresh --cities "Tel Aviv" --keywords "python"`
 
 ---
 
