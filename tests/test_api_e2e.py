@@ -45,6 +45,7 @@ def test_discover_refresh_and_jobs(
         }
     )
 
+    monkeypatch.setenv("ALLOW_REFRESH_ENDPOINT", "1")
     app = create_app()
     client = app.test_client()
 

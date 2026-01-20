@@ -11,6 +11,7 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50 text-slate-900"
       data-auto-refresh-on-start="{{ '1' if auto_refresh_on_start else '0' }}"
       data-refresh-endpoint="{{ '/debug/refresh' if show_refresh_report else '/refresh' }}"
+      data-refresh-enabled="{{ '1' if refresh_endpoint_enabled else '0' }}"
       data-testid="jobfinder-page">
   <div class="max-w-7xl mx-auto p-6">
     <header class="mb-6 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">

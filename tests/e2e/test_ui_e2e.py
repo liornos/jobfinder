@@ -56,6 +56,7 @@ def live_server(tmp_path, monkeypatch) -> Iterator[str]:
     db_path = tmp_path / "jobs.db"
     monkeypatch.setenv("JOBFINDER_DATABASE_URL", f"sqlite:///{db_path.as_posix()}")
     monkeypatch.setenv("AUTO_REFRESH_ON_START", "0")
+    monkeypatch.setenv("ALLOW_REFRESH_ENDPOINT", "1")
     app = create_app()
     app.config.update(TESTING=True)
 

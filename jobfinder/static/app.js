@@ -13,6 +13,7 @@
   const isDebug = () => (localStorage.getItem("jobfinder_debug") || "") === "1";
   const isE2eMode = () => new URLSearchParams(window.location.search).has("e2e");
   const serverAutoRefreshEnabled = () => document.body?.dataset?.autoRefreshOnStart === "1";
+  const refreshEnabled = () => document.body?.dataset?.refreshEnabled === "1";
   const refreshEndpoint = () => document.body?.dataset?.refreshEndpoint || "/refresh";
   const log = (...args) => console.log("[jobfinder]", ...args);
   const debug = (...args) => { if (isDebug()) console.debug("[jobfinder:debug]", ...args); };
@@ -767,6 +768,13 @@
       return;
     }
 
+    if (!refreshEnabled()) {
+      if (!silent) {
+        setScanMsg("Refresh disabled in this service. Use a scheduled refresh job.", "info");
+      }
+      return;
+    }
+
     const selected = selectedCompanies();
     if (!selected.length) {
       if (!silent) setDiscoverMsg("Select at least one company", "error");
@@ -959,7 +967,18 @@
 
     // Load any existing jobs already in the DB so filters/pagination stay fast
     loadJobsFromDB({ silent: true });
-    if (!isE2eMode() && !serverAutoRefreshEnabled()) autoRefreshOnStartup();
+    if (!refreshEnabled()) {
+      const btn = qs("#btnScanSelected");
+      if (btn) {
+        btn.disabled = true;
+        btn.setAttribute("aria-disabled", "true");
+      }
+      setScanMsg("Refresh disabled in this service. Use a scheduled refresh job.", "info");
+    }
+
+    if (!isE2eMode() && refreshEnabled() && !serverAutoRefreshEnabled()) {
+      autoRefreshOnStartup();
+    }
   }
 
   document.addEventListener("DOMContentLoaded", init);

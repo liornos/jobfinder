@@ -1,10 +1,13 @@
 # file: jobfinder/cli.py
 from __future__ import annotations
 import json
+from pathlib import Path
 from typing import Optional, List
 import typer
 
 from . import filtering, pipeline
+from .alerts.companies import load_companies
+from .config import load_config
 from .logging_utils import setup_logging
 
 app = typer.Typer(add_completion=False, help="Find new jobs via public ATS endpoints")
@@ -54,6 +57,34 @@ def scan(
         results = filtering.filter_by_title_keywords(results, title_list)
 
     typer.echo(json.dumps({"results": results}, ensure_ascii=False))
+
+
+@app.command("refresh")
+def refresh(
+    companies_path: Optional[str] = typer.Option(
+        None,
+        "--companies-path",
+        help="Path to companies.json (defaults to static/companies.json)",
+    ),
+    cities: Optional[str] = typer.Option(None, help="Comma list of cities"),
+    keywords: Optional[str] = typer.Option(None, help="Comma list of keywords"),
+    provider: Optional[str] = typer.Option(None, help="Restrict to provider"),
+    db_url: Optional[str] = typer.Option(None, help="Override database URL"),
+):
+    setup_logging()
+    cfg = load_config()
+    companies = load_companies(Path(companies_path) if companies_path else None)
+    city_list = _csv_list(cities) or cfg.defaults.cities
+    keyword_list = _csv_list(keywords) or cfg.defaults.keywords
+
+    summary = pipeline.refresh(
+        companies=companies,
+        cities=city_list,
+        keywords=keyword_list,
+        provider=provider,
+        db_url=db_url,
+    )
+    typer.echo(json.dumps({"summary": summary}, ensure_ascii=False))
 
 
 # NEW: provider diagnostics from CLI
