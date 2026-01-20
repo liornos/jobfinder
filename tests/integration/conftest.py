@@ -9,6 +9,7 @@ from jobfinder.api import create_app
 def app(monkeypatch, tmp_path):
     db_path = tmp_path / "jobs.db"
     monkeypatch.setenv("JOBFINDER_DATABASE_URL", f"sqlite:///{db_path.as_posix()}")
+    monkeypatch.setenv("ALLOW_REFRESH_ENDPOINT", "1")
     app = create_app()
     app.config.update(TESTING=True)
     return app

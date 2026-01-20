@@ -57,6 +57,10 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def _refresh_endpoint_enabled() -> bool:
+    return _env_bool("ALLOW_REFRESH_ENDPOINT", False)
+
+
 def _parse_bool(value: Any) -> Optional[bool]:
     if value is None:
         return None
@@ -88,9 +92,11 @@ def _run_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
     log.info("Auto refresh finished | summary=%s", summary)
 
 
-def _maybe_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
+def _maybe_startup_refresh(
+    *, cities: List[str], keywords: List[str], enabled: bool
+) -> None:
     global _STARTUP_REFRESH_DONE
-    if not _env_bool("AUTO_REFRESH_ON_START", True):
+    if not enabled:
         return
 
     with _STARTUP_REFRESH_LOCK:
@@ -406,6 +412,17 @@ def _refresh_with_report(
 
 @api.route("/refresh", methods=["POST"])
 def refresh() -> Any:
+    if not _refresh_endpoint_enabled():
+        return (
+            jsonify(
+                {
+                    "error": "Refresh endpoint disabled",
+                    "hint": "Run `jobfinder refresh` from a scheduled job or set ALLOW_REFRESH_ENDPOINT=1 for local use.",
+                }
+            ),
+            403,
+        )
+
     body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
     companies = body.get("companies") or []
     cities = _parse_list(body.get("cities"))
@@ -434,6 +451,17 @@ def refresh() -> Any:
 
 @api.route("/debug/refresh", methods=["POST"])
 def debug_refresh() -> Any:
+    if not _refresh_endpoint_enabled():
+        return (
+            jsonify(
+                {
+                    "error": "Refresh endpoint disabled",
+                    "hint": "Run `jobfinder refresh` from a scheduled job or set ALLOW_REFRESH_ENDPOINT=1 for local use.",
+                }
+            ),
+            403,
+        )
+
     body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
     companies = body.get("companies") or []
     cities = _parse_list(body.get("cities"))
@@ -631,12 +659,17 @@ def create_app() -> Flask:
     CORS(app)
     app.register_blueprint(api)
     auto_refresh_on_start = _env_bool("AUTO_REFRESH_ON_START", True)
+    refresh_endpoint_enabled = _refresh_endpoint_enabled()
     cfg = load_config()
     try:
         db.init_db()
     except Exception as e:
         log.warning("DB init skipped (non-fatal): %s", e)
-    _maybe_startup_refresh(cities=cfg.defaults.cities, keywords=cfg.defaults.keywords)
+    _maybe_startup_refresh(
+        cities=cfg.defaults.cities,
+        keywords=cfg.defaults.keywords,
+        enabled=auto_refresh_on_start,
+    )
 
     @app.get("/")
     def index() -> str:
@@ -644,6 +677,7 @@ def create_app() -> Flask:
             "index.html",
             auto_refresh_on_start=auto_refresh_on_start,
             show_refresh_report=False,
+            refresh_endpoint_enabled=refresh_endpoint_enabled,
         )
 
     @app.get("/debug/refresh-report")
@@ -652,6 +686,7 @@ def create_app() -> Flask:
             "index.html",
             auto_refresh_on_start=auto_refresh_on_start,
             show_refresh_report=True,
+            refresh_endpoint_enabled=refresh_endpoint_enabled,
         )
 
     @app.get("/search")

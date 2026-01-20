@@ -90,6 +90,7 @@ def temp_db_url(tmp_path, monkeypatch):
 @pytest.fixture()
 def app(monkeypatch):
     monkeypatch.setenv("JOBFINDER_DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("ALLOW_REFRESH_ENDPOINT", "1")
     app = create_app()
     app.config.update(TESTING=True)
     return app
