@@ -4,7 +4,7 @@ import os
 import yaml
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
 
@@ -12,12 +12,6 @@ from dotenv import load_dotenv
 class Defaults:
     cities: List[str]
     keywords: List[str]
-
-
-@dataclass(slots=True)
-class OutputCfg:
-    csv: Optional[str] = None
-    sqlite: Optional[str] = None
 
 
 @dataclass(slots=True)
@@ -29,7 +23,6 @@ class DiscoveryCfg:
 @dataclass(slots=True)
 class AppConfig:
     defaults: Defaults
-    output: OutputCfg
     discovery: DiscoveryCfg
     env: Dict[str, Any]
 
@@ -42,7 +35,6 @@ def load_config(path: Optional[str] = None) -> AppConfig:
         data = yaml.safe_load(cfg_path.read_text()) or {}
 
     defaults = data.get("defaults", {}) or {}
-    output = data.get("output", {}) or {}
     discovery = data.get("discovery", {}) or {}
 
     # Defaults if not provided by user config:
@@ -65,7 +57,6 @@ def load_config(path: Optional[str] = None) -> AppConfig:
 
     return AppConfig(
         defaults=Defaults(cities, keywords),
-        output=OutputCfg(output.get("csv"), output.get("sqlite")),
         discovery=DiscoveryCfg(sources, limit),
         env=dict(os.environ),
     )
