@@ -976,7 +976,7 @@
         btn.disabled = true;
         btn.setAttribute("aria-disabled", "true");
       }
-      setScanMsg("Refresh disabled in this service. Use a scheduled refresh job.", "info");
+      setScanMsg("", "info");
     }
 
     if (!isE2eMode() && refreshEnabled() && !serverAutoRefreshEnabled()) {
