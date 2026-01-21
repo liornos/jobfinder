@@ -29,19 +29,24 @@ def setup_logging(default_level: str | None = None) -> None:
     root = logging.getLogger()
     # Avoid duplicate handlers on reload
     if not root.handlers:
-        h = logging.StreamHandler(stream=sys.stdout)
-        fmt = logging.Formatter(
-            fmt=(
-                "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s | "
-                "provider=%(provider)s org=%(org)s elapsed_ms=%(elapsed_ms)s status=%(status)s"
-            ),
-            datefmt="%H:%M:%S",
-        )
-        h.setFormatter(fmt)
-        h.addFilter(_ContextDefaultsFilter())
-        root.addHandler(h)
-    else:
-        for handler in root.handlers:
-            if not any(isinstance(f, _ContextDefaultsFilter) for f in handler.filters):
-                handler.addFilter(_ContextDefaultsFilter())
+        gunicorn_error = logging.getLogger("gunicorn.error")
+        if gunicorn_error.handlers:
+            for handler in gunicorn_error.handlers:
+                root.addHandler(handler)
+            # Prevent double logging if gunicorn.error propagates
+            gunicorn_error.propagate = False
+        else:
+            h = logging.StreamHandler(stream=sys.stdout)
+            fmt = logging.Formatter(
+                fmt=(
+                    "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s | "
+                    "provider=%(provider)s org=%(org)s elapsed_ms=%(elapsed_ms)s status=%(status)s"
+                ),
+                datefmt="%H:%M:%S",
+            )
+            h.setFormatter(fmt)
+            root.addHandler(h)
+    for handler in root.handlers:
+        if not any(isinstance(f, _ContextDefaultsFilter) for f in handler.filters):
+            handler.addFilter(_ContextDefaultsFilter())
     root.setLevel(level)
