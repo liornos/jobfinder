@@ -11,12 +11,12 @@ htmlcov/
 jobfinder.egg-info
 
 # Virtual environments
-.venv\
-venv\
-env\
+.venv/
+venv/
+env/
 
 # Packaging / builds
-*.egg-info\
+*.egg-info/
 dist/
 build/
 
@@ -29,7 +29,5 @@ build/
 Thumbs.db
 
 # IGNORE LOCAL
-.idea/
-.venv/
 .serpapi_cache/
 jobfinder.db

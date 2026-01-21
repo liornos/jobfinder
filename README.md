@@ -5,8 +5,8 @@
 Jobfinder helps you find open roles by location: discover companies by city/keywords, scan their ATS boards, and filter jobs by publish date or remote/hybrid/onsite status.
 
 Includes:
-- **CLI** (`jobfinder`) for discovery + scanning
-- **Flask API** (`jobfinder-api`) with `POST /discover` and `POST /scan`
+- **CLI** (`jobfinder`) for scanning, refresh, and diagnostics
+- **Flask API** (`jobfinder-api`) with `/discover`, `/refresh`, `/scan`, `/jobs`
 - **Web UI** (served at `/`) to browse companies and jobs
 
 ---
@@ -44,7 +44,7 @@ Without a SerpAPI key, the UI still works using the bundled seed `static/compani
 
 ## Environment variables
 
-- `SERPAPI_API_KEY` - required **only** for `/discover` or `jobfinder discover`
+- `SERPAPI_API_KEY` - required **only** for `/discover` (UI/API)
 - `SERPAPI_NUM_RESULTS` - optional SerpAPI results per query (10-100, default 100)
 - `SERPAPI_CITY_MODE` - optional: `or` (default) combines cities; `split` runs per city
 - `SERPAPI_PROVIDER_MODE` - optional: `or` (default) combines providers into one query; `split` runs per provider
@@ -82,7 +82,7 @@ dir env: | ? Name -like "*SERPAPI*"
 ## Web UI
 
 - Served at `/` by `jobfinder-api`
-- Flow: **Discover -> select companies -> Scan jobs -> jobs table**
+- Flow: **Discover -> select companies -> Refresh jobs -> jobs table**
 
 Run:
 ```powershell
@@ -114,8 +114,8 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 
 - Endpoints:
   - `POST /discover` (requires `SERPAPI_API_KEY`)
-  - `POST /refresh` → fetch from providers and upsert into the DB (disabled unless `ALLOW_REFRESH_ENDPOINT=1`)
-  - `GET /jobs` → query jobs from the DB with filters (provider/remote/min_score/max_age_days/cities/keywords/active/limit/offset)
+  - `POST /refresh` -> fetch from providers and upsert into the DB (disabled unless `ALLOW_REFRESH_ENDPOINT=1`)
+  - `GET /jobs` -> query jobs from the DB with filters (provider/remote/min_score/max_age_days/cities/keywords/active/limit/offset)
   - `POST /scan` (legacy passthrough to providers; kept for compatibility)
   - `GET /healthz`
 - Start locally: `jobfinder-api` (after installing + setting `SERPAPI_API_KEY` as shown above).
@@ -129,7 +129,7 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 
 - Default DB: SQLite at `jobfinder.db` (override with `JOBFINDER_DATABASE_URL` or `DATABASE_URL`).
 - Install Postgres driver when needed: `pip install -e .[pg]` (uses `psycopg[binary]`).
-- Recommended UI flow: Discover → select companies → **Refresh** (stores into DB) → Filters call `/jobs` (DB-only, no provider HTTP calls).
+- Recommended UI flow: Discover -> select companies -> **Refresh** (stores into DB) -> Filters call `/jobs` (DB-only, no provider HTTP calls).
 
 ## Scheduled refresh (Render Cron Job)
 
@@ -144,9 +144,9 @@ Optional flags: `--cities "Tel Aviv" --keywords "python" --companies-path static
 ## CLI
 
 - `jobfinder --help` (and subcommands) for options.
-- Discover example: `jobfinder discover --cities "Tel Aviv,New York" --keywords "software,ai" --sources greenhouse,lever --limit 50 --out companies.csv`
-- Scan example: `jobfinder scan --companies-file data/companies.example.csv --keywords "python,data" --cities "Tel Aviv,New York" --out jobs.csv`
-- Refresh example: `jobfinder refresh --cities "Tel Aviv" --keywords "python"`
+- Scan example: `jobfinder scan --companies-json '[{"name":"Acme","provider":"greenhouse","org":"acme"}]' --cities "Tel Aviv" --keywords "python"`
+- Refresh example: `jobfinder refresh --cities "Tel Aviv" --keywords "python" --companies-path static/companies.json`
+- Diagnostics: `jobfinder debug-providers`
 
 ---
 
@@ -158,10 +158,6 @@ Optional file in project root:
 defaults:
   cities: ["Tel Aviv", "New York"]
   keywords: ["python", "data"]
-
-output:
-  csv: jobs.csv
-  sqlite: jobs.db
 
 discovery:
   sources: ["greenhouse", "lever"]
@@ -185,34 +181,20 @@ discovery:
 
 1) Create `jobfinder/providers/<new>.py` with:
 ```python
-async def jobs(self, company: Company):
+def fetch_jobs(org: str, *, limit: int | None = None, **kwargs) -> list[dict]:
     ...
 ```
 
-2) Register in `jobfinder/providers/__init__.py`:
-```python
-PROVIDERS["new"] = NewProvider()
-```
-
----
-
-## Data formats
-
-Companies CSV:
-```text
-name,city,provider,org,careers_url
-```
-
-Jobs CSV:
-```text
-id,title,company,url,location,remote,created_at,provider,extra,score,reasons
-```
+2) Add the provider name to:
+   - `jobfinder/pipeline.py` (`PROVIDERS` + `_PROVIDER_HOST`)
+   - `jobfinder/providers/__init__.py`
+   - `jobfinder/static/app.js` (UI provider list)
 
 ---
 
 ## Troubleshooting
 
-- `SERPAPI_API_KEY missing` -> set it before starting `jobfinder-api` or running `jobfinder discover`
+- `SERPAPI_API_KEY missing` -> set it before starting `jobfinder-api` or calling `/discover`
 - PowerShell `export` error -> use `$env:VAR="value"`
 - Empty `/scan` results -> verify:
   - `provider` in `{greenhouse, lever}`
