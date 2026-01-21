@@ -4,12 +4,12 @@ import argparse
 import json
 import os
 import time
+import logging
 from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from jobfinder import pipeline
-from jobfinder.logging_utils import setup_logging
 
 
 def _sanitize_city(city: str) -> str:
@@ -49,6 +49,16 @@ def _parse_args() -> argparse.Namespace:
         help="Origin companies.json to update with verified companies.",
     )
     return parser.parse_args()
+
+
+def _setup_logging() -> None:
+    level_name = (os.getenv("LOG_LEVEL") or "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
 
 def _is_workable_job_link(url: str, org: str) -> bool:
@@ -213,7 +223,7 @@ def _verify_companies_with_jobs(
 
 def main() -> None:
     args = _parse_args()
-    setup_logging()
+    _setup_logging()
 
     city = _sanitize_city(args.city)
     if not city:

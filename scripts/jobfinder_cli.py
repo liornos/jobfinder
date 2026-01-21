@@ -1,14 +1,18 @@
-# file: jobfinder/cli.py
+# file: scripts/jobfinder_cli.py
 from __future__ import annotations
-import json
-from pathlib import Path
-from typing import Optional, List
-import typer
 
-from . import filtering, pipeline
-from .alerts.companies import load_companies
-from .config import load_config
-from .logging_utils import setup_logging
+import json
+import logging
+import os
+from pathlib import Path
+from typing import List, Optional
+
+import typer
+import yaml
+from dotenv import load_dotenv
+
+from jobfinder import filtering, pipeline
+from jobfinder.alerts.companies import load_companies
 
 app = typer.Typer(add_completion=False, help="Find new jobs via public ATS endpoints")
 
@@ -17,6 +21,29 @@ def _csv_list(val: Optional[str]) -> List[str]:
     if not val:
         return []
     return [s.strip() for s in val.split(",") if s.strip()]
+
+
+def _setup_logging(level_name: str | None = None) -> None:
+    level = getattr(
+        logging, (level_name or os.getenv("LOG_LEVEL") or "INFO").upper(), logging.INFO
+    )
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
+def _load_defaults(path: Optional[str] = None) -> tuple[List[str], List[str]]:
+    load_dotenv()
+    cfg_path = Path(path) if path else None
+    data = {}
+    if cfg_path and cfg_path.exists():
+        data = yaml.safe_load(cfg_path.read_text()) or {}
+    defaults = data.get("defaults", {}) or {}
+    cities = defaults.get("cities") or ["Tel Aviv", "herzliya"]
+    keywords = defaults.get("keywords") or ["software"]
+    return cities, keywords
 
 
 @app.command("scan")
@@ -35,7 +62,7 @@ def scan(
         None, help='Title contains (comma). e.g. "automation, software"'
     ),
 ):
-    setup_logging()
+    _setup_logging()
     companies = json.loads(companies_json)
     city_list = _csv_list(cities)
     keyword_list = _csv_list(keywords)
@@ -71,11 +98,11 @@ def refresh(
     provider: Optional[str] = typer.Option(None, help="Restrict to provider"),
     db_url: Optional[str] = typer.Option(None, help="Override database URL"),
 ):
-    setup_logging()
-    cfg = load_config()
+    _setup_logging()
     companies = load_companies(Path(companies_path) if companies_path else None)
-    city_list = _csv_list(cities) or cfg.defaults.cities
-    keyword_list = _csv_list(keywords) or cfg.defaults.keywords
+    default_cities, default_keywords = _load_defaults()
+    city_list = _csv_list(cities) or default_cities
+    keyword_list = _csv_list(keywords) or default_keywords
 
     summary = pipeline.refresh(
         companies=companies,
@@ -93,8 +120,12 @@ def debug_providers():
     """
     Print provider import diagnostics (module paths, errors, sys.path head, cwd).
     """
-    setup_logging("DEBUG")
+    _setup_logging("DEBUG")
     import json as _json
 
     report = pipeline.diagnose_providers()
     typer.echo(_json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    app()

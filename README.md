@@ -5,9 +5,16 @@
 Jobfinder helps you find open roles by location: discover companies by city/keywords, scan their ATS boards, and filter jobs by publish date or remote/hybrid/onsite status.
 
 Includes:
-- **CLI** (`jobfinder`) for scanning, refresh, and diagnostics
 - **Flask API** (`jobfinder-api`) with `/discover`, `/refresh`, `/scan`, `/jobs`
 - **Web UI** (served at `/`) to browse companies and jobs
+- **Scripts** in `scripts/` for local helpers (not used in Render/CI)
+
+---
+
+## Product vs experiments
+
+- Product (Render/CI): `jobfinder/api.py`, `jobfinder/pipeline.py`, `jobfinder/providers/`, `jobfinder/db.py`, `jobfinder/filtering.py`, `jobfinder/alerts/`
+- Experiments/local helpers: `scripts/`
 
 ---
 
@@ -133,20 +140,20 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 
 ## Scheduled refresh (Render Cron Job)
 
-Keep the web service lightweight (UI + DB queries) and run refresh as a scheduled job:
+Keep the web service lightweight (UI + DB queries) and run refresh as a scheduled job
+by calling the API endpoint (requires `ALLOW_REFRESH_ENDPOINT=1`):
 ```bash
-jobfinder refresh
+curl -s -X POST https://<your-service>/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"cities":["Tel Aviv"],"keywords":["python"],"companies":[{"name":"Acme","provider":"greenhouse","org":"acme"}]}'
 ```
-Optional flags: `--cities "Tel Aviv" --keywords "python" --companies-path static/companies.json`
 
 ---
 
-## CLI
+## Scripts (local / experiments)
 
-- `jobfinder --help` (and subcommands) for options.
-- Scan example: `jobfinder scan --companies-json '[{"name":"Acme","provider":"greenhouse","org":"acme"}]' --cities "Tel Aviv" --keywords "python"`
-- Refresh example: `jobfinder refresh --cities "Tel Aviv" --keywords "python" --companies-path static/companies.json`
-- Diagnostics: `jobfinder debug-providers`
+- `scripts/jobfinder_cli.py` for scan/refresh/debug helpers (requires `pip install -e .[dev]`)
+- `scripts/discover_one_city_provider.py` for one-off SerpAPI discovery
 
 ---
 
