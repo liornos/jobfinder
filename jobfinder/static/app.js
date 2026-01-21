@@ -773,7 +773,7 @@
 
     if (!refreshEnabled()) {
       if (!silent) {
-        setScanMsg("Refresh disabled in this service. Use a scheduled refresh job.", "info");
+        setScanMsg("", "info");
       }
       return;
     }
