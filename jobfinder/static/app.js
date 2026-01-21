@@ -223,6 +223,7 @@
     // Normalize common spelling variations for city selection + filtering.
     "tel aviv": ["tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv yafo"],
     "tel aviv-yafo": ["tel aviv-yafo", "tel aviv yafo", "tel aviv"],
+    "tel aviv yafo": ["tel aviv yafo", "tel aviv-yafo", "tel aviv"],
     "herzliya": ["herzliya", "hertzliya", "herzlia"],
     "kfar saba": ["kfar saba", "kfar sava"],
     "raanana": ["raanana", "ra'anana", "ra-anana", "ra anana"],
@@ -233,6 +234,8 @@
     "ramat gan": ["ramat gan", "ramat-gan"],
     "bnei brak": ["bnei brak", "bnei-brak"],
     "givatayim": ["givatayim", "giv'atayim", "givataym"],
+    "ness ziona": ["ness ziona", "nes ziona", "ness-ziona"],
+    "or yehuda": ["or yehuda", "or-yehuda"],
     "airport city": ["airport city", "airport-city"],
   };
 

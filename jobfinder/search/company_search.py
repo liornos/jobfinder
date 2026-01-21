@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import os
 from dataclasses import dataclass
 from typing import Iterable, List, Dict, Tuple
@@ -7,6 +8,8 @@ import httpx
 from ..serpapi_cache import read_cache as _serpapi_cache_read
 from ..serpapi_cache import write_cache as _serpapi_cache_write
 from ..models import Company
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -165,7 +168,8 @@ async def discover_companies(
     if not api_key:
         api_key = os.getenv("SERPAPI_API_KEY")
     if not api_key:
-        raise RuntimeError("SERPAPI_API_KEY missing. Set in environment or .env")
+        log.warning("SERPAPI_API_KEY missing. Set in environment or .env")
+        return DiscoveryResult(companies=[])
     wanted = {s.strip().lower() for s in (sources or []) if s} or {
         "greenhouse",
         "lever",
