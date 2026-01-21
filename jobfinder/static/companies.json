@@ -1252,6 +1252,265 @@
       "provider": "smartrecruiters",
       "careers_url": "https://jobs.smartrecruiters.com/dev2",
       "city": "tel aviv"
+    },
+    {
+      "name": "weankor",
+      "org": "weankor",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/weankor/C6.008",
+      "city": "Petach Tikva"
+    },
+    {
+      "name": "algosec",
+      "org": "algosec",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/algosec/71.006",
+      "city": "Petach Tikva"
+    },
+    {
+      "name": "mindspace",
+      "org": "mindspace",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/mindspace/71.00B",
+      "city": "Petach Tikva"
+    },
+    {
+      "name": "terasky",
+      "org": "terasky",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/terasky/B7.009",
+      "city": "Petach Tikva"
+    },
+    {
+      "name": "bestgateengineering",
+      "org": "bestgateengineering",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/bestgateengineering",
+      "city": "Petach Tikva"
+    },
+    {
+      "name": "irpsystems",
+      "org": "irpsystems",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/irpsystems/47.002",
+      "city": "ness ziona"
+    },
+    {
+      "name": "moovit",
+      "org": "moovit",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/moovit/63.007",
+      "city": "ness ziona"
+    },
+    {
+      "name": "foresightauto",
+      "org": "foresightauto",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/foresightauto/13.000",
+      "city": "ness ziona"
+    },
+    {
+      "name": "dbank",
+      "org": "dbank",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/dbank/F8.004",
+      "city": "ness ziona"
+    },
+    {
+      "name": "phenompeopleinc",
+      "org": "phenompeopleinc",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/phenompeopleinc",
+      "city": "ness ziona"
+    },
+    {
+      "name": "isi",
+      "org": "isi",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/isi/86.000",
+      "city": "or yehuda"
+    },
+    {
+      "name": "audiocodes",
+      "org": "audiocodes",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/audiocodes/85.004",
+      "city": "or yehuda"
+    },
+    {
+      "name": "elsight",
+      "org": "elsight",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/elsight/B9.006",
+      "city": "or yehuda"
+    },
+    {
+      "name": "myheritage",
+      "org": "myheritage",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/myheritage",
+      "city": "or yehuda"
+    },
+    {
+      "name": "rentokilinitial1",
+      "org": "rentokilinitial1",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/rentokilinitial1",
+      "city": "or yehuda"
+    },
+    {
+      "name": "juganu",
+      "org": "juganu",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/juganu",
+      "city": "or yehuda"
+    },
+    {
+      "name": "truvid",
+      "org": "truvid",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/truvid/4A.00E",
+      "city": "ra'anana"
+    },
+    {
+      "name": "drivenets",
+      "org": "drivenets",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/drivenets/72.006",
+      "city": "ra'anana"
+    },
+    {
+      "name": "cardosystems",
+      "org": "cardosystems",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cardosystems/F2.003",
+      "city": "ra'anana"
+    },
+    {
+      "name": "myteam",
+      "org": "myteam",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/myteam",
+      "city": "ra'anana"
+    },
+    {
+      "name": "amp",
+      "org": "amp",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/amp/6A.005",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "syqe",
+      "org": "syqe",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/syqe/F1.00C",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "realplay",
+      "org": "realplay",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/realplay/9A.003",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "anchorfintech",
+      "org": "anchorfintech",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/anchorfintech/87.00D",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "inmanage",
+      "org": "inmanage",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/inmanage/B7.006",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "evinced",
+      "org": "evinced",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/evinced/28.000",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "zafran_io",
+      "org": "zafran_io",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/zafran_io/49.009",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "backslash",
+      "org": "backslash",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/backslash/98.004",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "joinattil",
+      "org": "joinattil",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/joinattil/38.00A",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "sunflower",
+      "org": "sunflower",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/sunflower/AA.009",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "atbayjobs",
+      "org": "atbayjobs",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/atbayjobs",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "verifone",
+      "org": "verifone",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/verifone",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "phasev",
+      "org": "phasev",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/phasev",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "usasurveyjob",
+      "org": "usasurveyjob",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/usasurveyjob",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "hunterexecutiveplacement",
+      "org": "hunterexecutiveplacement",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/hunterexecutiveplacement",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "nexarinc",
+      "org": "nexarinc",
+      "provider": "smartrecruiters",
+      "careers_url": "https://jobs.smartrecruiters.com/nexarinc",
+      "city": "tel aviv yafo"
+    },
+    {
+      "name": "d-id",
+      "org": "d-id",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/d-id",
+      "city": "tel aviv yafo"
     }
   ]
 }

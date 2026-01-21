@@ -62,6 +62,7 @@ _CITY_ALIASES = {
     # Normalize common spelling variations for query + matching.
     "tel aviv": ["tel aviv", "tel-aviv", "tel aviv-yafo", "tel aviv yafo"],
     "tel aviv-yafo": ["tel aviv-yafo", "tel aviv yafo", "tel aviv"],
+    "tel aviv yafo": ["tel aviv yafo", "tel aviv-yafo", "tel aviv"],
     "herzliya": ["herzliya", "hertzliya", "herzlia"],
     "kfar saba": ["kfar saba", "kfar sava"],
     "raanana": ["raanana", "ra'anana", "ra-anana", "ra anana"],
