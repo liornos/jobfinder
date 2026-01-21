@@ -1,6 +1,7 @@
 # file: jobfinder/pipeline.py
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.util
 import inspect
@@ -13,6 +14,7 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, cast
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
@@ -21,10 +23,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from . import db, filtering
-from .serpapi_cache import read_cache as _serpapi_cache_read
-from .serpapi_cache import write_cache as _serpapi_cache_write
+from .filtering import Job as JobModel
 from .filtering import apply_filters
-from .models import Job as JobModel
 
 log = logging.getLogger(__name__)
 
@@ -142,6 +142,71 @@ def _env_bool(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _serpapi_cache_settings() -> Tuple[int, Path]:
+    ttl = _env_int("SERPAPI_CACHE_TTL_SECONDS", 86400, min_val=0)
+    cache_dir = os.getenv("SERPAPI_CACHE_DIR")
+    if cache_dir:
+        path = Path(os.path.expanduser(cache_dir))
+    else:
+        path = Path.cwd() / ".serpapi_cache"
+    return ttl, path
+
+
+def _serpapi_cache_key(url: str, params: Optional[Dict[str, Any]]) -> str:
+    items = sorted((str(k), str(v)) for k, v in (params or {}).items())
+    raw = json.dumps(
+        {"url": url, "params": items}, sort_keys=True, separators=(",", ":")
+    )
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+
+def _serpapi_cache_read(
+    url: str, params: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    ttl, cache_dir = _serpapi_cache_settings()
+    if ttl <= 0:
+        return None
+    key = _serpapi_cache_key(url, params)
+    path = cache_dir / f"{key}.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+    ts = data.get("ts")
+    if not isinstance(ts, (int, float)):
+        return None
+    if time.time() - ts > ttl:
+        try:
+            path.unlink()
+        except Exception:
+            pass
+        return None
+    payload = data.get("payload")
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def _serpapi_cache_write(
+    url: str, params: Optional[Dict[str, Any]], payload: Dict[str, Any]
+) -> None:
+    ttl, cache_dir = _serpapi_cache_settings()
+    if ttl <= 0:
+        return
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        key = _serpapi_cache_key(url, params)
+        path = cache_dir / f"{key}.json"
+        tmp = path.with_suffix(".tmp")
+        data = {"ts": time.time(), "payload": payload}
+        tmp.write_text(json.dumps(data, ensure_ascii=True), encoding="utf-8")
+        tmp.replace(path)
+    except Exception:
+        return
 
 
 def _sanitize_query_term(term: str) -> str:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from jobfinder import filtering
-from jobfinder.models import Job
+from jobfinder.filtering import Job
 
 
 def test_score_counts_keywords_city_and_recency():

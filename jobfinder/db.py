@@ -31,7 +31,7 @@ from sqlalchemy.orm import (
 )
 
 from . import filtering
-from .models import Job as JobModel
+from .filtering import Job as JobModel
 
 
 def _json_type():

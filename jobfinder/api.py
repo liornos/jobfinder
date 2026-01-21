@@ -11,9 +11,12 @@ import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from flask import Blueprint, Flask, jsonify, render_template, request
+import yaml
+from dotenv import load_dotenv
 
 # CORS optional (safe if not installed)
 try:
@@ -27,13 +30,107 @@ except Exception:
 from . import db, filtering, pipeline
 from .alerts.companies import load_companies
 from .alerts.state import AlertState
-from .config import load_config
-from .logging_utils import setup_logging
 
 api = Blueprint("api", __name__)
 log = logging.getLogger(__name__)
 _STARTUP_REFRESH_DONE = False
 _STARTUP_REFRESH_LOCK = threading.Lock()
+
+
+class _ContextDefaultsFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, "provider"):
+            record.provider = "-"
+        if not hasattr(record, "org"):
+            record.org = "-"
+        if not hasattr(record, "elapsed_ms"):
+            record.elapsed_ms = "-"
+        if not hasattr(record, "status"):
+            record.status = "-"
+        return True
+
+
+def setup_logging(default_level: str | None = None) -> None:
+    """
+    Console logging. Controlled by env LOG_LEVEL (DEBUG/INFO/WARN/ERROR).
+    """
+    level_name = (os.getenv("LOG_LEVEL") or default_level or "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    root = logging.getLogger()
+    if not root.handlers:
+        gunicorn_error = logging.getLogger("gunicorn.error")
+        if gunicorn_error.handlers:
+            for handler in gunicorn_error.handlers:
+                root.addHandler(handler)
+            gunicorn_error.propagate = False
+        else:
+            h = logging.StreamHandler()
+            fmt = logging.Formatter(
+                fmt=(
+                    "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s | "
+                    "provider=%(provider)s org=%(org)s elapsed_ms=%(elapsed_ms)s status=%(status)s"
+                ),
+                datefmt="%H:%M:%S",
+            )
+            h.setFormatter(fmt)
+            root.addHandler(h)
+    for handler in root.handlers:
+        if not any(isinstance(f, _ContextDefaultsFilter) for f in handler.filters):
+            handler.addFilter(_ContextDefaultsFilter())
+    root.setLevel(level)
+
+
+@dataclass(slots=True)
+class Defaults:
+    cities: List[str]
+    keywords: List[str]
+
+
+@dataclass(slots=True)
+class DiscoveryCfg:
+    sources: List[str]
+    limit: int = 50
+
+
+@dataclass(slots=True)
+class AppConfig:
+    defaults: Defaults
+    discovery: DiscoveryCfg
+    env: Dict[str, Any]
+
+
+def load_config(path: Optional[str] = None) -> AppConfig:
+    load_dotenv()
+    cfg_path = Path(path) if path else None
+    data: Dict[str, Any] = {}
+    if cfg_path and cfg_path.exists():
+        data = yaml.safe_load(cfg_path.read_text()) or {}
+
+    defaults = data.get("defaults", {}) or {}
+    discovery = data.get("discovery", {}) or {}
+
+    cities = defaults.get("cities") or ["Tel Aviv", "herzliya"]
+    keywords = defaults.get("keywords") or ["software"]
+    sources = discovery.get("sources") or [
+        "greenhouse",
+        "lever",
+        "ashby",
+        "smartrecruiters",
+        "comeet",
+        "workable",
+        "breezy",
+        "workday",
+        "recruitee",
+        "jobvite",
+        "icims",
+    ]
+    limit = int(discovery.get("limit", 50))
+
+    return AppConfig(
+        defaults=Defaults(cities, keywords),
+        discovery=DiscoveryCfg(sources, limit),
+        env=dict(os.environ),
+    )
 
 
 def _parse_list(value: Any) -> List[str]:

@@ -1,14 +1,40 @@
 from __future__ import annotations
+
 import re
-from typing import List, Tuple, Optional, Dict, Any
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from .models import Job
-from .utils.geo import haversine_km
+from math import asin, cos, radians, sin, sqrt
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from rapidfuzz import fuzz
 except Exception:
     fuzz = None
+
+
+@dataclass(frozen=True, slots=True)
+class Job:
+    id: str
+    title: str
+    company: str
+    url: str
+    location: Optional[str] = None
+    remote: Optional[bool] = None
+    created_at: Optional[datetime] = None
+    provider: Optional[str] = None
+    extra: Optional[Dict[str, Any]] = None
+
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    )
+    c = 2 * asin(sqrt(a))
+    return R * c
 
 
 def normalize(s: str) -> str:
