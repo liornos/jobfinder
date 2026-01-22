@@ -73,6 +73,10 @@ _CITY_ALIASES = {
     "ramat gan": ["ramat gan", "ramat-gan"],
     "bnei brak": ["bnei brak", "bnei-brak"],
     "givatayim": ["givatayim", "giv'atayim", "givataym"],
+    "beer sheva": ["beer sheva", "be'er sheva", "beer-sheva", "beersheba"],
+    "yokneam": ["yokneam", "yokneam illit"],
+    "yokneam illit": ["yokneam illit", "yokneam"],
+    "tel hai": ["tel hai", "tel-hai"],
     "airport city": ["airport city", "airport-city"],
 }
 
@@ -546,15 +550,24 @@ def _call_fetch(
     company: Optional[Dict[str, Any]] = None,
     *,
     provider: str,
+    cities: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     # flexible signature
     t0 = time.perf_counter()
     attempts: List[Dict[str, Any]] = []
     if company:
+        if cities:
+            attempts.append({"org": org, "company": company, "cities": cities})
         attempts.append({"org": org, "company": company})
         careers_url = (company.get("careers_url") or "").strip()
         if careers_url:
+            if cities:
+                attempts.append(
+                    {"org": org, "careers_url": careers_url, "cities": cities}
+                )
             attempts.append({"org": org, "careers_url": careers_url})
+    if cities:
+        attempts.append({"org": org, "cities": cities})
     attempts.extend(({"org": org}, {"slug": org}, {"company": org}, {}))
     for kwargs in attempts:
         try:
@@ -977,8 +990,11 @@ def _process_company_jobs(
         return None, []
 
     fetch = fetchers.get(cprov)
+    fetch_cities = cities if filter_by_cities else None
     if callable(fetch):
-        raw_jobs = _call_fetch(fetch, org, company=company, provider=cprov)
+        raw_jobs = _call_fetch(
+            fetch, org, company=company, provider=cprov, cities=fetch_cities
+        )
     else:
         _log_provider_fetch(
             status="skipped",
