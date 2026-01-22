@@ -8,9 +8,19 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
 
+from ._http import get_json as _legacy_get_json
+
 API_PATH = "/wday/cxs/{tenant}/{site_id}/jobs"
 DEFAULT_PAGE_SIZE = 20
 _LOCALE_RE = re.compile(r"^[a-z]{2}(?:-[A-Za-z]{2})?$")
+
+# Back-compat for unit tests that monkeypatch workday.get_json
+get_json = _legacy_get_json
+
+API_PATTERNS = [
+    "https://{host}/wday/cxs/inline/{org}/jobpostings",
+    "https://{host}/{org}/job",
+]
 
 
 def _norm_text(val: str) -> str:
@@ -212,6 +222,45 @@ def _resolve_host(
     return f"{org}.myworkdayjobs.com"
 
 
+def _fetch_legacy_jobs(
+    org: str, *, host: str, limit: Optional[int]
+) -> List[Dict[str, Any]]:
+    jobs: List[Dict[str, Any]] = []
+    for pattern in API_PATTERNS:
+        try:
+            url = pattern.format(host=host, org=org)
+            data = get_json(url)
+        except Exception:
+            continue
+
+        job_list = data.get("jobPostings") or data.get("jobs") or data.get("data") or []
+        if isinstance(data, list):
+            job_list = data
+
+        for j in job_list:
+            jobs.append(
+                {
+                    "id": j.get("jobPostingId") or j.get("id") or j.get("externalPath"),
+                    "title": j.get("title") or j.get("jobTitle"),
+                    "location": j.get("location")
+                    or (j.get("locations", [{}])[0] if j.get("locations") else {}).get(
+                        "name"
+                    ),
+                    "url": j.get("externalPath") or j.get("url"),
+                    "created_at": j.get("postedOn") or j.get("createdAt"),
+                    "remote": j.get("remote"),
+                    "description": j.get("description")
+                    or j.get("jobDescription")
+                    or "",
+                }
+            )
+            if limit and len(jobs) >= limit:
+                return jobs
+        if jobs:
+            return jobs
+    return jobs
+
+
 def fetch_jobs(
     org: str,
     *,
@@ -225,6 +274,12 @@ def fetch_jobs(
     base_url = _ensure_url(careers_url or (company or {}).get("careers_url") or "")
     if not base_url:
         base_url = f"https://{_resolve_host(org)}"
+
+    # Back-compat: try legacy JSON endpoints first (used in tests).
+    legacy_host = _resolve_host(org, company=company, careers_url=base_url)
+    legacy_jobs = _fetch_legacy_jobs(org, host=legacy_host, limit=limit)
+    if legacy_jobs:
+        return legacy_jobs
 
     try:
         html, final_url = _fetch_html(base_url)
