@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -11,12 +12,15 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     create_engine,
+    inspect,
     select,
+    text,
     update,
 )
 from sqlalchemy.engine import Engine
@@ -32,6 +36,8 @@ from sqlalchemy.orm import (
 
 from . import filtering
 from .filtering import Job as JobModel
+
+log = logging.getLogger(__name__)
 
 
 def _json_type():
@@ -90,6 +96,7 @@ class Job(Base):
         ForeignKey("companies.id", ondelete="CASCADE")
     )
     company_name: Mapped[Optional[str]] = mapped_column(String(255))
+    company_city: Mapped[Optional[str]] = mapped_column(String(255))
     title: Mapped[Optional[str]] = mapped_column(String(512))
     location: Mapped[Optional[str]] = mapped_column(String(512))
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
@@ -107,6 +114,13 @@ class Job(Base):
     reasons: Mapped[Optional[str]] = mapped_column(Text)
 
     company: Mapped[Optional[Company]] = relationship(back_populates="jobs")
+
+    __table_args__ = (
+        Index("ix_jobs_active_created_id", "is_active", "created_at", "id"),
+        Index("ix_jobs_provider", "provider"),
+        Index("ix_jobs_org", "org"),
+        Index("ix_jobs_company_name", "company_name"),
+    )
 
 
 _ENGINE: Optional[Engine] = None
@@ -172,6 +186,55 @@ def session_scope(url: Optional[str] = None) -> Iterator[Session]:
 def init_db(url: Optional[str] = None) -> None:
     engine = get_engine(url)
     Base.metadata.create_all(engine)
+    _ensure_schema(engine)
+
+
+def _ensure_schema(engine: Engine) -> None:
+    """
+    Best-effort schema fixes for existing databases (add columns + indexes).
+    """
+    try:
+        inspector = inspect(engine)
+        tables = set(inspector.get_table_names())
+        if "jobs" not in tables:
+            return
+
+        jobs_cols = {col["name"] for col in inspector.get_columns("jobs")}
+        if "company_city" not in jobs_cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE jobs ADD COLUMN company_city VARCHAR(255)")
+                )
+            jobs_cols.add("company_city")
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_jobs_active_created_id "
+                    "ON jobs (is_active, created_at, id)"
+                )
+            )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_jobs_provider ON jobs (provider)")
+            )
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_org ON jobs (org)"))
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_jobs_company_name "
+                    "ON jobs (company_name)"
+                )
+            )
+
+            if "company_city" in jobs_cols and "companies" in tables:
+                conn.execute(
+                    text(
+                        "UPDATE jobs SET company_city = ("
+                        "SELECT city FROM companies WHERE companies.id = jobs.company_id"
+                        ") WHERE company_city IS NULL"
+                    )
+                )
+    except Exception as exc:
+        log.warning("DB schema check skipped: %s", exc)
 
 
 def _coerce_bool(val: Any) -> Optional[bool]:
@@ -324,6 +387,7 @@ def upsert_job(
             org=org,
             company=company,
             company_name=company.name,
+            company_city=company.city,
             title=job_dict.get("title"),
             location=job_dict.get("location"),
             url=url or job_key,
@@ -355,6 +419,7 @@ def upsert_job(
         row.reasons = reasons or row.reasons
         row.company = company
         row.company_name = company.name or row.company_name
+        row.company_city = company.city or row.company_city
 
     session.flush()
     return row
@@ -380,13 +445,13 @@ def mark_inactive(
     return int(rowcount or 0)
 
 
-def job_to_dict(row: Job) -> Dict[str, Any]:
+def job_to_dict(row: Job, *, include_extra: bool = True) -> Dict[str, Any]:
     payload: Dict[str, Any] = {
         "id": row.external_id or row.job_key,
         "job_key": row.job_key,
         "title": row.title,
         "company": row.company_name,
-        "company_city": row.company.city if row.company else None,
+        "company_city": row.company_city,
         "provider": row.provider,
         "org": row.org,
         "location": row.location,
@@ -399,10 +464,16 @@ def job_to_dict(row: Job) -> Dict[str, Any]:
         "reasons": row.reasons,
     }
 
-    extra = dict(row.raw_json or {})
-    if row.work_mode and not extra.get("work_mode"):
-        extra["work_mode"] = row.work_mode
-    if row.description and not extra.get("description"):
-        extra["description"] = row.description
-    payload["extra"] = extra
+    if include_extra:
+        extra = dict(row.raw_json or {})
+        if row.work_mode and not extra.get("work_mode"):
+            extra["work_mode"] = row.work_mode
+        if row.description and not extra.get("description"):
+            extra["description"] = row.description
+        payload["extra"] = extra
+    else:
+        extra = {}
+        if row.work_mode:
+            extra["work_mode"] = row.work_mode
+        payload["extra"] = extra
     return payload

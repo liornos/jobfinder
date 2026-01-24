@@ -611,6 +611,7 @@ def jobs() -> Any:
     fast = _parse_bool(args.get("fast"))
     if fast is True and compute_scores is None:
         compute_scores = False
+    lite = _parse_bool(args.get("lite")) is True
     only_active = str(args.get("active") or "true").lower() not in {"0", "false", "no"}
     only_new = _parse_bool(args.get("only_new")) is True
     limit_raw = int(args.get("limit") or 500)
@@ -618,7 +619,7 @@ def jobs() -> Any:
     offset = int(args.get("offset") or 0)
 
     log.info(
-        "API /jobs called | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | only_new=%s | limit=%s offset=%s | compute_scores=%s",
+        "API /jobs called | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | only_new=%s | limit=%s offset=%s | compute_scores=%s | lite=%s",
         provider,
         remote,
         min_score,
@@ -633,6 +634,7 @@ def jobs() -> Any:
         limit,
         offset,
         compute_scores,
+        lite,
     )
 
     try:
@@ -648,6 +650,7 @@ def jobs() -> Any:
             orgs=orgs,
             company_names=company_names,
             only_active=only_active,
+            lite=lite,
             limit=limit,
             offset=offset,
         )

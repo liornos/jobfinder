@@ -7,13 +7,16 @@
     jobs: [],
     baseJobs: [],
     baseCitiesKey: "",
+    baseLimit: 0,
+    baseFetched: false,
     inFlight: false,
   };
 
   const CITY_ALL_VALUE = "__all__";
   const CITY_ALL_LABEL = "Israel - All";
   const DEFAULT_LIMIT = 200;
-  const BASE_LIMIT = 600;
+  const BASE_LIMITS = [600, 1200, 2000];
+  const TARGET_RESULTS = 40;
 
   const cityState = {
     selected: [],
@@ -233,28 +236,37 @@
       .join("|");
   }
 
-  function buildQuery({ includeTitle = true, limit = DEFAULT_LIMIT } = {}) {
+  function buildQuery({
+    includeTitle = true,
+    limit = DEFAULT_LIMIT,
+    cities,
+    titleKeywords,
+  } = {}) {
     const params = new URLSearchParams();
-    const cities = getSelectedCities();
-    const titleKeywords = parseTitleKeywords(qs("#titleInput")?.value || "");
+    const citiesVal = Array.isArray(cities) ? cities : getSelectedCities();
+    const titleVal = Array.isArray(titleKeywords)
+      ? titleKeywords
+      : parseTitleKeywords(qs("#titleInput")?.value || "");
 
-    if (cities.length) params.set("cities", cities.join(","));
-    if (includeTitle && titleKeywords.length) params.set("title_keywords", titleKeywords.join(","));
+    if (citiesVal.length) params.set("cities", citiesVal.join(","));
+    if (includeTitle && titleVal.length) params.set("title_keywords", titleVal.join(","));
     params.set("fast", "1");
+    params.set("lite", "1");
     params.set("limit", String(limit));
 
-    return { params, cities, titleKeywords };
+    return { params, cities: citiesVal, titleKeywords: titleVal };
   }
 
   function getSearchContext() {
-    const { cities, titleKeywords } = buildQuery({ includeTitle: false, limit: BASE_LIMIT });
+    const cities = getSelectedCities();
+    const titleKeywords = parseTitleKeywords(qs("#titleInput")?.value || "");
     const hasCityFilter = cities.length > 0;
     const citiesKey = hasCityFilter ? buildCitiesKey(cities) : "";
     return { cities, titleKeywords, hasCityFilter, citiesKey };
   }
 
   function applyCachedFilter(ctx, { updateStatus = true } = {}) {
-    if (!ctx.hasCityFilter || state.baseCitiesKey !== ctx.citiesKey) return false;
+    if (!state.baseFetched || state.baseCitiesKey !== ctx.citiesKey) return false;
     state.jobs = filterByTitleKeywords(state.baseJobs, ctx.titleKeywords);
     renderResults();
     if (!updateStatus) return true;
@@ -313,29 +325,20 @@
     if (countEl) countEl.textContent = String(state.jobs.length);
   }
 
-  async function fetchJobs({ forceServer = false } = {}) {
-    if (state.inFlight) return;
-    const ctx = getSearchContext();
-
-    const cachedApplied = applyCachedFilter(ctx, { updateStatus: !forceServer });
-    if (cachedApplied && !forceServer) return;
-
-    if (!ctx.hasCityFilter) {
-      state.baseJobs = [];
-      state.baseCitiesKey = "";
+  function nextBaseLimit(current) {
+    for (const lim of BASE_LIMITS) {
+      if (lim > current) return lim;
     }
+    return null;
+  }
 
-    state.inFlight = true;
-    setLoading(true);
-    setStatus(
-      cachedApplied && forceServer ? "Searching more jobs..." : "Loading jobs...",
-      "info"
-    );
-
-    const includeTitle = !ctx.hasCityFilter || (forceServer && ctx.titleKeywords.length);
-    const query = ctx.hasCityFilter && !includeTitle
-      ? buildQuery({ includeTitle: false, limit: BASE_LIMIT })
-      : buildQuery({ includeTitle: true, limit: DEFAULT_LIMIT });
+  async function fetchBaseJobs(ctx, limit) {
+    const query = buildQuery({
+      includeTitle: false,
+      limit,
+      cities: ctx.cities,
+      titleKeywords: ctx.titleKeywords,
+    });
     const url = `/jobs?${query.params.toString()}`;
 
     try {
@@ -351,26 +354,59 @@
       if (!resp.ok) {
         const msg = data?.error ? String(data.error) : "Failed to load jobs";
         setStatus(msg, "error");
-        return;
+        return false;
       }
 
-      const results = data?.results || [];
-      if (ctx.hasCityFilter && !includeTitle) {
-        state.baseJobs = results;
-        state.baseCitiesKey = ctx.citiesKey;
-        state.jobs = filterByTitleKeywords(state.baseJobs, ctx.titleKeywords);
-      } else {
-        state.jobs = results;
-      }
-
-      renderResults();
-      const count = state.jobs.length;
-      const msg = count
-        ? (ctx.hasCityFilter && ctx.titleKeywords.length ? `Filtered ${count} jobs` : `Loaded ${count} jobs`)
-        : "No jobs found";
-      setStatus(msg, count ? "ok" : "info");
+      state.baseJobs = data?.results || [];
+      state.baseCitiesKey = ctx.citiesKey;
+      state.baseLimit = limit;
+      state.baseFetched = true;
+      return true;
     } catch (e) {
       setStatus("Failed to load jobs", "error");
+      return false;
+    }
+  }
+
+  async function fetchJobs({ forceServer = false } = {}) {
+    if (state.inFlight) return;
+    const ctx = getSearchContext();
+
+    if (state.baseCitiesKey !== ctx.citiesKey) {
+      state.baseJobs = [];
+      state.baseLimit = 0;
+      state.baseFetched = false;
+      state.baseCitiesKey = ctx.citiesKey;
+    }
+
+    const cachedApplied = applyCachedFilter(ctx, { updateStatus: !forceServer });
+    if (cachedApplied && !forceServer) {
+      return;
+    }
+
+    state.inFlight = true;
+    setLoading(true);
+
+    try {
+      const initialLimit = ctx.titleKeywords.length ? BASE_LIMITS[0] : DEFAULT_LIMIT;
+      if (!state.baseFetched || state.baseLimit < initialLimit || forceServer) {
+        setStatus("Loading jobs...", "info");
+        const ok = await fetchBaseJobs(ctx, initialLimit);
+        if (!ok) return;
+      }
+
+      applyCachedFilter(ctx, { updateStatus: true });
+
+      if (forceServer && ctx.titleKeywords.length) {
+        let nextLimit = nextBaseLimit(state.baseLimit);
+        while (nextLimit && state.jobs.length < TARGET_RESULTS) {
+          setStatus("Searching more jobs...", "info");
+          const ok = await fetchBaseJobs(ctx, nextLimit);
+          if (!ok) break;
+          applyCachedFilter(ctx, { updateStatus: true });
+          nextLimit = nextBaseLimit(state.baseLimit);
+        }
+      }
     } finally {
       state.inFlight = false;
       setLoading(false);
