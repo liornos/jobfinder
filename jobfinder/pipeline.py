@@ -20,7 +20,7 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only
 
 from . import db, filtering
 from .filtering import Job as JobModel
@@ -1219,6 +1219,7 @@ def query_jobs(
     orgs: Optional[List[Any]] = None,
     company_names: Optional[List[Any]] = None,
     only_active: bool = True,
+    lite: bool = False,
     limit: int = 500,
     offset: int = 0,
     db_url: Optional[str] = None,
@@ -1236,6 +1237,7 @@ def query_jobs(
         compute_scores = compute_needed
     else:
         compute_scores = bool(compute_scores)
+    effective_lite = bool(lite) and not compute_scores
     prov_filter = (str(provider).strip().lower()) if provider else None
     org_set = {s.lower() for s in _as_str_list(orgs)} if orgs else set()
     company_name_set = (
@@ -1248,11 +1250,28 @@ def query_jobs(
         return []
 
     with db.session_scope(db_url) as session:
-        base_stmt = (
-            select(db.Job)
-            .options(selectinload(db.Job.company))
-            .order_by(db.Job.created_at.desc(), db.Job.id.desc())
-        )
+        base_stmt = select(db.Job).order_by(db.Job.created_at.desc(), db.Job.id.desc())
+        if effective_lite:
+            base_stmt = base_stmt.options(
+                load_only(
+                    db.Job.job_key,
+                    db.Job.external_id,
+                    db.Job.title,
+                    db.Job.company_name,
+                    db.Job.company_city,
+                    db.Job.provider,
+                    db.Job.org,
+                    db.Job.location,
+                    db.Job.url,
+                    db.Job.created_at,
+                    db.Job.last_seen_at,
+                    db.Job.is_active,
+                    db.Job.remote,
+                    db.Job.work_mode,
+                    db.Job.score,
+                    db.Job.reasons,
+                )
+            )
         if only_active:
             base_stmt = base_stmt.where(db.Job.is_active.is_(True))
         if prov_filter:
@@ -1273,7 +1292,9 @@ def query_jobs(
             if not rows:
                 break
 
-            jobs_batch = [db.job_to_dict(r) for r in rows]
+            jobs_batch = [
+                db.job_to_dict(r, include_extra=not effective_lite) for r in rows
+            ]
 
             if compute_scores:
                 # Recompute score at query-time so filters reflect the active keyword set.
