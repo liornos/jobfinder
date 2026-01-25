@@ -1,0 +1,382 @@
+{
+  "companies": [
+    {
+      "name": "stigg",
+      "org": "stigg",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/stigg",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "finout",
+      "org": "finout",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/finout",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "shapes",
+      "org": "shapes",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/shapes",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "sweep",
+      "org": "sweep",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/sweep",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "chainalysis-careers",
+      "org": "chainalysis-careers",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/chainalysis-careers",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nexxen",
+      "org": "nexxen",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/nexxen",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "snappy",
+      "org": "snappy",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/snappy",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "embed",
+      "org": "embed",
+      "provider": "greenhouse",
+      "careers_url": "https://boards.greenhouse.io/embed",
+      "city": "ramat gan"
+    },
+    {
+      "name": "coda",
+      "org": "coda",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/coda",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "zadara",
+      "org": "zadara",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/zadara",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "tavily",
+      "org": "tavily",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/tavily",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "pinecone",
+      "org": "pinecone",
+      "provider": "ashby",
+      "careers_url": "https://jobs.ashbyhq.com/pinecone",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "snap",
+      "org": "snap",
+      "provider": "workday",
+      "careers_url": "https://myworkdayjobs.com/snap",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nvidiaexternalcareersite",
+      "org": "nvidiaexternalcareersite",
+      "provider": "workday",
+      "careers_url": "https://myworkdayjobs.com/nvidiaexternalcareersite",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "barracuda-networks-inc",
+      "org": "barracuda-networks-inc",
+      "provider": "jobvite",
+      "careers_url": "https://jobvite.com/barracuda-networks-inc",
+      "city": "ramat gan"
+    },
+    {
+      "name": "forescout",
+      "org": "forescout",
+      "provider": "jobvite",
+      "careers_url": "https://jobvite.com/forescout",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "zones",
+      "org": "zones",
+      "provider": "jobvite",
+      "careers_url": "https://jobvite.com/zones",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "ness",
+      "org": "ness",
+      "provider": "jobvite",
+      "careers_url": "https://jobvite.com/ness",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "themergermarketgroup",
+      "org": "themergermarketgroup",
+      "provider": "jobvite",
+      "careers_url": "https://jobvite.com/themergermarketgroup",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "varonis-internal",
+      "org": "varonis-internal",
+      "provider": "jobvite",
+      "careers_url": "https://jobvite.com/varonis-internal",
+      "city": "Herzliya"
+    },
+    {
+      "name": "Agora",
+      "org": "agora",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/agora",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "Powtoon",
+      "org": "powtoon",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/powtoon",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "365Scores",
+      "org": "365scores",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/365scores",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "Silverfort",
+      "org": "silverfort",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/silverfort",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Guardio",
+      "org": "guardio",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/guardio",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Sentrycs",
+      "org": "sentrycs",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/sentrycs",
+      "city": "Tel Aviv-Yafo"
+    },
+    {
+      "name": "Hub Technologies",
+      "org": "hubtechnologies",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/hubtechnologies",
+      "city": "Israel"
+    },
+    {
+      "name": "Legit Security",
+      "org": "legitsecurity",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/legitsecurity",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Paragon",
+      "org": "paragon",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/paragon",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "KayHut",
+      "org": "kayhut",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/kayhut",
+      "city": "Herzliya"
+    },
+    {
+      "name": "Cyberillium",
+      "org": "cyberillium",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cyberillium",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "BioCatch",
+      "org": "biocatch",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/biocatch",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "Cellebrite",
+      "org": "cellebrite",
+      "provider": "comeet",
+      "careers_url": "https://www.comeet.com/jobs/cellebrite",
+      "city": "Petah Tikva"
+    },
+    {
+      "name": "cye",
+      "org": "cye",
+      "provider": "lever",
+      "careers_url": "https://jobs.lever.co/cye",
+      "city": "Herzliya"
+    },
+    {
+      "name": "careersintl-maxlinear",
+      "org": "careersintl-maxlinear",
+      "provider": "icims",
+      "careers_url": "https://icims.com/careersintl-maxlinear",
+      "city": "petach tikva"
+    },
+    {
+      "name": "eumecareers-lw",
+      "org": "eumecareers-lw",
+      "provider": "icims",
+      "careers_url": "https://icims.com/eumecareers-lw",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "global-nyu",
+      "org": "global-nyu",
+      "provider": "icims",
+      "careers_url": "https://icims.com/global-nyu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "uscareers-nyu",
+      "org": "uscareers-nyu",
+      "provider": "icims",
+      "careers_url": "https://icims.com/uscareers-nyu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nyu",
+      "org": "nyu",
+      "provider": "icims",
+      "careers_url": "https://icims.com/nyu",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "spines",
+      "org": "spines",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/spines",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "nuvei",
+      "org": "nuvei",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/nuvei",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "cxg",
+      "org": "cxg",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/cxg",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "ezrecruiting",
+      "org": "ezrecruiting",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/ezrecruiting",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "257",
+      "org": "257",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/257",
+      "city": "Tel Aviv"
+    },
+    {
+      "name": "regatta-3",
+      "org": "regatta-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/regatta-3",
+      "city": "Haifa"
+    },
+    {
+      "name": "two95-international-inc-3",
+      "org": "two95-international-inc-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/two95-international-inc-3",
+      "city": "Haifa"
+    },
+    {
+      "name": "networx-1",
+      "org": "networx-1",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/networx-1",
+      "city": "jerusalem"
+    },
+    {
+      "name": "premium-merchant-funding-3",
+      "org": "premium-merchant-funding-3",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/premium-merchant-funding-3",
+      "city": "jerusalem"
+    },
+    {
+      "name": "hi-jobs",
+      "org": "hi-jobs",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/hi-jobs",
+      "city": "jerusalem"
+    },
+    {
+      "name": "surglobal",
+      "org": "surglobal",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/surglobal",
+      "city": "jerusalem"
+    },
+    {
+      "name": "patrique-mercier-recruitment-1",
+      "org": "patrique-mercier-recruitment-1",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/patrique-mercier-recruitment-1",
+      "city": "jerusalem"
+    },
+    {
+      "name": "juganu",
+      "org": "juganu",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/juganu",
+      "city": "or yehuda"
+    },
+    {
+      "name": "myteam",
+      "org": "myteam",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/myteam",
+      "city": "ra'anana"
+    },
+    {
+      "name": "d-id",
+      "org": "d-id",
+      "provider": "workable",
+      "careers_url": "https://apply.workable.com/d-id",
+      "city": "tel aviv yafo"
+    }
+  ]
+}
