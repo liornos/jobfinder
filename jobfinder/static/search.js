@@ -23,6 +23,10 @@
     allIsrael: false,
   };
 
+  const titleState = {
+    selected: [],
+  };
+
   function escapeHtml(value) {
     return (value ?? "").toString().replace(/[&<>"']/g, (m) => ({
       "&": "&amp;",
@@ -95,7 +99,7 @@
     return { cities: out, all };
   }
 
-  function createCityChip(label, onRemove) {
+  function createChip(label, onRemove) {
     const chip = document.createElement("span");
     chip.className = "inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700";
 
@@ -120,7 +124,7 @@
     container.innerHTML = "";
 
     if (cityState.allIsrael) {
-      container.appendChild(createCityChip(CITY_ALL_LABEL, () => clearSelectedCities()));
+      container.appendChild(createChip(CITY_ALL_LABEL, () => clearSelectedCities()));
       return;
     }
 
@@ -133,7 +137,25 @@
     }
 
     cityState.selected.forEach((city) => {
-      container.appendChild(createCityChip(city, () => removeSelectedCity(city)));
+      container.appendChild(createChip(city, () => removeSelectedCity(city)));
+    });
+  }
+
+  function renderSelectedTitles() {
+    const container = qs("#titleSelected");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (!titleState.selected.length) {
+      const empty = document.createElement("span");
+      empty.className = "text-xs text-slate-400";
+      empty.textContent = "No titles selected.";
+      container.appendChild(empty);
+      return;
+    }
+
+    titleState.selected.forEach((title) => {
+      container.appendChild(createChip(title, () => removeSelectedTitle(title)));
     });
   }
 
@@ -208,11 +230,59 @@
     });
   }
 
-  function parseTitleKeywords(value) {
-    const raw = (value ?? "").toString().trim();
-    if (!raw) return [];
-    const parts = raw.includes(",") ? raw.split(",") : raw.split(/\s+/);
-    return parts.map((s) => s.trim()).filter(Boolean);
+  function parseTitleValues(values) {
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(values) ? values : [values]).forEach((value) => {
+      (value ?? "")
+        .toString()
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .forEach((title) => {
+          const key = title.toLowerCase();
+          if (seen.has(key)) return;
+          seen.add(key);
+          out.push(title);
+        });
+    });
+    return out;
+  }
+
+  function addTitlesToSelection(values) {
+    const titles = parseTitleValues(Array.isArray(values) ? values : [values]);
+    if (!titles.length) return;
+    const existing = new Set(titleState.selected.map((title) => title.toLowerCase()));
+    titles.forEach((title) => {
+      const key = title.toLowerCase();
+      if (existing.has(key)) return;
+      existing.add(key);
+      titleState.selected.push(title);
+    });
+    renderSelectedTitles();
+  }
+
+  function setSelectedTitles(values) {
+    titleState.selected = parseTitleValues(values);
+    renderSelectedTitles();
+  }
+
+  function clearSelectedTitles() {
+    titleState.selected = [];
+    renderSelectedTitles();
+  }
+
+  function removeSelectedTitle(title) {
+    const key = title.toLowerCase();
+    titleState.selected = titleState.selected.filter((item) => item.toLowerCase() !== key);
+    renderSelectedTitles();
+    if (state.inFlight) return;
+    const ctx = getSearchContext();
+    applyCachedFilter(ctx, { updateStatus: true });
+  }
+
+  function getSelectedTitles() {
+    return [...titleState.selected];
   }
 
   function normalizeText(value) {
@@ -246,7 +316,7 @@
     const citiesVal = Array.isArray(cities) ? cities : getSelectedCities();
     const titleVal = Array.isArray(titleKeywords)
       ? titleKeywords
-      : parseTitleKeywords(qs("#titleInput")?.value || "");
+      : getSelectedTitles();
 
     if (citiesVal.length) params.set("cities", citiesVal.join(","));
     if (includeTitle && titleVal.length) params.set("title_keywords", titleVal.join(","));
@@ -259,7 +329,7 @@
 
   function getSearchContext() {
     const cities = getSelectedCities();
-    const titleKeywords = parseTitleKeywords(qs("#titleInput")?.value || "");
+    const titleKeywords = getSelectedTitles();
     const hasCityFilter = cities.length > 0;
     const citiesKey = hasCityFilter ? buildCitiesKey(cities) : "";
     return { cities, titleKeywords, hasCityFilter, citiesKey };
@@ -413,13 +483,25 @@
     }
   }
 
-  function setupTitleInput() {
-    const input = qs("#titleInput");
-    if (!input) return;
-    input.addEventListener("input", () => {
+  function setupTitleSelect() {
+    const select = qs("#titleSelect");
+    if (!select) return;
+    select.addEventListener("change", () => {
+      const value = select.value || "";
+      if (!value) return;
+      addTitlesToSelection(value);
+      select.value = "";
       if (state.inFlight) return;
       const ctx = getSearchContext();
       applyCachedFilter(ctx, { updateStatus: true });
+    });
+
+    qs("#titleClear")?.addEventListener("click", () => {
+      clearSelectedTitles();
+      if (state.inFlight) return;
+      const ctx = getSearchContext();
+      applyCachedFilter(ctx, { updateStatus: true });
+      select.focus();
     });
   }
 
@@ -437,8 +519,11 @@
       clearSelectedCities();
     }
     if (title) {
-      const input = qs("#titleInput");
-      if (input) input.value = title;
+      const values = Array.isArray(title) ? title : String(title).split(",");
+      setSelectedTitles(values);
+    }
+    if (!title) {
+      clearSelectedTitles();
     }
 
     if (city || title) fetchJobs({ forceServer: true });
@@ -450,8 +535,9 @@
       fetchJobs({ forceServer: true });
     });
     setupCitySelect();
-    setupTitleInput();
+    setupTitleSelect();
     renderSelectedCities();
+    renderSelectedTitles();
     renderResults();
     loadFromQuery();
   }
