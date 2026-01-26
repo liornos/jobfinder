@@ -243,32 +243,32 @@
                       <option value="">Choose a city or district</option>
                       <option value="__all__">Israel - All</option>
                       <optgroup label="Districts">
-                        <option value="Tel Aviv, Ramat Gan, Petach Tikva">Tel Aviv District</option>
-                        <option value="Herzliya, Kfar Saba, Raanana, Hod Hasharon">Hasharon District</option>
                         <option value="Haifa, Yokneam, Tel Hai, Caesarea">Haifa District</option>
+                        <option value="Herzliya, Kfar Saba, Raanana, Hod Hasharon">Hasharon District</option>
                         <option value="Jerusalem">Jerusalem District</option>
+                        <option value="Tel Aviv, Ramat Gan, Petach Tikva">Tel Aviv District</option>
                       </optgroup>
                       <optgroup label="Cities">
-                        <option value="Tel Aviv">Tel Aviv</option>
-                        <option value="Herzliya">Herzliya</option>
-                        <option value="Kfar Saba">Kfar Saba</option>
-                        <option value="Raanana">Raanana</option>
-                        <option value="Petach Tikva">Petach Tikva</option>
-                        <option value="Hod Hasharon">Hod Hasharon</option>
-                        <option value="Netanya">Netanya</option>
-                        <option value="Ramat Gan">Ramat Gan</option>
-                        <option value="Bnei Brak">Bnei Brak</option>
-                        <option value="Holon">Holon</option>
-                        <option value="Rehovot">Rehovot</option>
-                        <option value="Beer Sheva">Beer Sheva</option>
-                        <option value="Ness Ziona">Ness Ziona</option>
-                        <option value="Or Yehuda">Or Yehuda</option>
                         <option value="Airport City">Airport City</option>
+                        <option value="Beer Sheva">Beer Sheva</option>
                         <option value="Binyamina">Binyamina</option>
+                        <option value="Bnei Brak">Bnei Brak</option>
                         <option value="Caesarea">Caesarea</option>
                         <option value="Haifa">Haifa</option>
-                        <option value="Tel Hai">Tel Hai</option>
+                        <option value="Herzliya">Herzliya</option>
+                        <option value="Hod Hasharon">Hod Hasharon</option>
+                        <option value="Holon">Holon</option>
                         <option value="Jerusalem">Jerusalem</option>
+                        <option value="Kfar Saba">Kfar Saba</option>
+                        <option value="Ness Ziona">Ness Ziona</option>
+                        <option value="Netanya">Netanya</option>
+                        <option value="Or Yehuda">Or Yehuda</option>
+                        <option value="Petach Tikva">Petach Tikva</option>
+                        <option value="Raanana">Raanana</option>
+                        <option value="Ramat Gan">Ramat Gan</option>
+                        <option value="Rehovot">Rehovot</option>
+                        <option value="Tel Aviv">Tel Aviv</option>
+                        <option value="Tel Hai">Tel Hai</option>
                         <option value="Yokneam">Yokneam</option>
                         <option value="Yokneam Illit">Yokneam Illit</option>
                       </optgroup>
@@ -276,9 +276,33 @@
                   </div>
 
                   <div>
-                    <label for="titleInput" class="block text-sm font-semibold text-slate-700">Job title search</label>
-                    <input id="titleInput" type="text" class="control w-full mt-2"
-                           placeholder="software engineer, qa, automation">
+                    <label for="titleSelect" class="block text-sm font-semibold text-slate-700">Job title search</label>
+                    <select id="titleSelect" class="control w-full mt-2">
+                      <option value="">Choose a job title</option>
+                      <option value="Analyst">Analyst</option>
+                      <option value="Automation">Automation</option>
+                      <option value="Backend">Backend</option>
+                      <option value="Cloud">Cloud</option>
+                      <option value="Data">Data</option>
+                      <option value="Data Engineer">Data Engineer</option>
+                      <option value="Data Scientist">Data Scientist</option>
+                      <option value="DevOps">DevOps</option>
+                      <option value="Embedded">Embedded</option>
+                      <option value="Frontend">Frontend</option>
+                      <option value="Full Stack">Full Stack</option>
+                      <option value="Hardware">Hardware</option>
+                      <option value="Machine Learning">Machine Learning</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Mobile">Mobile</option>
+                      <option value="Product">Product</option>
+                      <option value="Product Manager">Product Manager</option>
+                      <option value="QA">QA</option>
+                      <option value="Security">Security</option>
+                      <option value="Site Reliability">Site Reliability</option>
+                      <option value="Software">Software</option>
+                      <option value="Systems">Systems</option>
+                      <option value="UX/UI">UX/UI</option>
+                    </select>
                   </div>
 
                   <div class="flex w-full">
@@ -291,10 +315,16 @@
                 </div>
 
                 <div class="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400">
-                  <span>Selected</span>
+                  <span>Selected cities</span>
                   <button id="cityClear" type="button" class="text-slate-500 hover:text-slate-700">Clear</button>
                 </div>
                 <div id="citySelected" class="min-h-[1.5rem] flex flex-wrap gap-2"></div>
+
+                <div class="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400 mt-3">
+                  <span>Selected titles</span>
+                  <button id="titleClear" type="button" class="text-slate-500 hover:text-slate-700">Clear</button>
+                </div>
+                <div id="titleSelected" class="min-h-[1.5rem] flex flex-wrap gap-2"></div>
               </form>
 
               <p id="statusMsg" class="text-sm font-semibold mt-2" role="status" aria-live="polite"></p>
@@ -333,6 +363,6 @@
       </div>
     </div>
   </div>
-<script src="/static/search.js?v=7" defer></script>
+<script src="/static/search.js?v=8" defer></script>
 </body>
 </html>
