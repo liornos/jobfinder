@@ -207,7 +207,7 @@ def _ensure_schema(engine: Engine) -> bool:
         inspector = inspect(engine)
         tables = set(inspector.get_table_names())
         if "jobs" not in tables:
-            return
+            return True
 
         jobs_cols = {col["name"] for col in inspector.get_columns("jobs")}
         if "company_city" not in jobs_cols:
