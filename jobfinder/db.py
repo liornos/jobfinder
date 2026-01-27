@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
@@ -126,6 +127,8 @@ class Job(Base):
 _ENGINE: Optional[Engine] = None
 _SESSION_FACTORY: Optional[sessionmaker[Session]] = None
 _DB_URL: Optional[str] = None
+_SCHEMA_READY: set[str] = set()
+_SCHEMA_LOCK = threading.Lock()
 
 
 def _database_url(url: Optional[str] = None) -> str:
@@ -185,11 +188,18 @@ def session_scope(url: Optional[str] = None) -> Iterator[Session]:
 
 def init_db(url: Optional[str] = None) -> None:
     engine = get_engine(url)
-    Base.metadata.create_all(engine)
-    _ensure_schema(engine)
+    resolved = _database_url(url)
+    if resolved in _SCHEMA_READY:
+        return
+    with _SCHEMA_LOCK:
+        if resolved in _SCHEMA_READY:
+            return
+        Base.metadata.create_all(engine)
+        if _ensure_schema(engine):
+            _SCHEMA_READY.add(resolved)
 
 
-def _ensure_schema(engine: Engine) -> None:
+def _ensure_schema(engine: Engine) -> bool:
     """
     Best-effort schema fixes for existing databases (add columns + indexes).
     """
@@ -197,7 +207,7 @@ def _ensure_schema(engine: Engine) -> None:
         inspector = inspect(engine)
         tables = set(inspector.get_table_names())
         if "jobs" not in tables:
-            return
+            return True
 
         jobs_cols = {col["name"] for col in inspector.get_columns("jobs")}
         if "company_city" not in jobs_cols:
@@ -233,8 +243,10 @@ def _ensure_schema(engine: Engine) -> None:
                         ") WHERE company_city IS NULL"
                     )
                 )
+        return True
     except Exception as exc:
         log.warning("DB schema check skipped: %s", exc)
+        return False
 
 
 def _coerce_bool(val: Any) -> Optional[bool]:
