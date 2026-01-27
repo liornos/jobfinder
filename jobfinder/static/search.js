@@ -10,6 +10,8 @@
     baseLimit: 0,
     baseFetched: false,
     inFlight: false,
+    pendingSearch: false,
+    pendingForce: false,
   };
 
   const CITY_ALL_VALUE = "__all__";
@@ -124,7 +126,10 @@
     container.innerHTML = "";
 
     if (cityState.allIsrael) {
-      container.appendChild(createChip(CITY_ALL_LABEL, () => clearSelectedCities()));
+      container.appendChild(createChip(CITY_ALL_LABEL, () => {
+        clearSelectedCities();
+        triggerAutoSearch();
+      }));
       return;
     }
 
@@ -157,6 +162,11 @@
     titleState.selected.forEach((title) => {
       container.appendChild(createChip(title, () => removeSelectedTitle(title)));
     });
+  }
+
+  function triggerAutoSearch() {
+    fetchJobs();
+    fetchJobs({ forceServer: true });
   }
 
   function addCitiesToSelection(values) {
@@ -202,6 +212,7 @@
     const key = city.toLowerCase();
     cityState.selected = cityState.selected.filter((item) => item.toLowerCase() !== key);
     renderSelectedCities();
+    triggerAutoSearch();
   }
 
   function getSelectedCities() {
@@ -222,10 +233,12 @@
         addCitiesToSelection(value);
       }
       select.value = "";
+      triggerAutoSearch();
     });
 
     qs("#cityClear")?.addEventListener("click", () => {
       clearSelectedCities();
+      triggerAutoSearch();
       select.focus();
     });
   }
@@ -276,9 +289,7 @@
     const key = title.toLowerCase();
     titleState.selected = titleState.selected.filter((item) => item.toLowerCase() !== key);
     renderSelectedTitles();
-    if (state.inFlight) return;
-    const ctx = getSearchContext();
-    applyCachedFilter(ctx, { updateStatus: true });
+    triggerAutoSearch();
   }
 
   function getSelectedTitles() {
@@ -439,7 +450,11 @@
   }
 
   async function fetchJobs({ forceServer = false } = {}) {
-    if (state.inFlight) return;
+    if (state.inFlight) {
+      state.pendingSearch = true;
+      state.pendingForce = state.pendingForce || forceServer;
+      return;
+    }
     const ctx = getSearchContext();
 
     if (state.baseCitiesKey !== ctx.citiesKey) {
@@ -449,8 +464,9 @@
       state.baseCitiesKey = ctx.citiesKey;
     }
 
+    const initialLimit = ctx.titleKeywords.length ? BASE_LIMITS[0] : DEFAULT_LIMIT;
     const cachedApplied = applyCachedFilter(ctx, { updateStatus: !forceServer });
-    if (cachedApplied && !forceServer) {
+    if (cachedApplied && !forceServer && state.baseLimit >= initialLimit) {
       return;
     }
 
@@ -458,7 +474,6 @@
     setLoading(true);
 
     try {
-      const initialLimit = ctx.titleKeywords.length ? BASE_LIMITS[0] : DEFAULT_LIMIT;
       if (!state.baseFetched || state.baseLimit < initialLimit || forceServer) {
         setStatus("Loading jobs...", "info");
         const ok = await fetchBaseJobs(ctx, initialLimit);
@@ -480,6 +495,12 @@
     } finally {
       state.inFlight = false;
       setLoading(false);
+      if (state.pendingSearch) {
+        const pendingForce = state.pendingForce;
+        state.pendingSearch = false;
+        state.pendingForce = false;
+        void fetchJobs({ forceServer: pendingForce });
+      }
     }
   }
 
@@ -491,16 +512,12 @@
       if (!value) return;
       addTitlesToSelection(value);
       select.value = "";
-      if (state.inFlight) return;
-      const ctx = getSearchContext();
-      applyCachedFilter(ctx, { updateStatus: true });
+      triggerAutoSearch();
     });
 
     qs("#titleClear")?.addEventListener("click", () => {
       clearSelectedTitles();
-      if (state.inFlight) return;
-      const ctx = getSearchContext();
-      applyCachedFilter(ctx, { updateStatus: true });
+      triggerAutoSearch();
       select.focus();
     });
   }
