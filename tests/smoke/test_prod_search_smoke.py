@@ -71,5 +71,12 @@ def test_search_city_shows_results():
         assert "Loaded" in last_status, f"Unexpected status: {last_status}"
         assert last_count > 0, "Expected at least one job result"
         expect(page.locator("#resultsBody")).not_to_contain_text("No jobs found")
+        page.wait_for_function(
+            """
+            () => Array.from(document.querySelectorAll('#resultsBody tr'))
+              .some(tr => tr.querySelectorAll('td').length >= 6)
+            """,
+            timeout=30000,
+        )
 
         browser.close()
