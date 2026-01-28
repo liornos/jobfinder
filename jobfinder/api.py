@@ -229,6 +229,10 @@ def discover() -> Any:
         limit,
     )
 
+    if not os.getenv("SERPAPI_API_KEY"):
+        log.info("API /discover skipped: missing SERPAPI_API_KEY")
+        return jsonify({"companies": [], "warning": "missing_serpapi_api_key"})
+
     # If you have a pipeline.discover, use it; else just echo back companies via UI discover flow.
     discover_fn = getattr(pipeline, "discover", None)
     if callable(discover_fn):
