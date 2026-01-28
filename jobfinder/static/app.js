@@ -748,6 +748,11 @@
         return;
       }
 
+      if (data?.warning === "missing_serpapi_api_key") {
+        await loadSeedCompanies(null, cities);
+        return;
+      }
+
       state.companies = data?.companies || [];
       renderCompanies();
       showPanelsAfterDiscover();

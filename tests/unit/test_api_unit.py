@@ -22,6 +22,7 @@ def test_discover_calls_pipeline_and_returns_companies(monkeypatch, client):
         return [{"provider": "lever", "org": "acme"}]
 
     monkeypatch.setattr(pipeline, "discover", fake_discover)
+    monkeypatch.setenv("SERPAPI_API_KEY", "test-key")
 
     resp = client.post(
         "/discover",
@@ -47,6 +48,7 @@ def test_discover_returns_500_on_exception(monkeypatch, client):
         raise RuntimeError("boom")
 
     monkeypatch.setattr(pipeline, "discover", bad_discover)
+    monkeypatch.setenv("SERPAPI_API_KEY", "test-key")
 
     resp = client.post("/discover", json={"cities": ["Tel Aviv"]})
     assert resp.status_code == 500

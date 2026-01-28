@@ -854,7 +854,8 @@ def discover(
 ) -> List[Dict[str, Any]]:
     api_key = os.getenv("SERPAPI_API_KEY")
     if not api_key:
-        raise RuntimeError("MISSING API KEY")
+        log.warning("Discover skipped: missing SERPAPI_API_KEY")
+        return []
     if not sources:
         sources = list(_PROVIDER_HOST.keys())
     cities_expanded = _expand_city_aliases(_as_str_list(cities))
