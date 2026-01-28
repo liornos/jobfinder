@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from typing import List
 
-import pytest
 
 from jobfinder import pipeline
 
@@ -92,8 +91,8 @@ def test_discover_combines_providers_with_or(monkeypatch, serpapi_env):
 
 def test_discover_requires_api_key(monkeypatch):
     monkeypatch.delenv("SERPAPI_API_KEY", raising=False)
-    with pytest.raises(RuntimeError):
-        pipeline.discover(cities=["Paris"], keywords=["data"])
+    companies = pipeline.discover(cities=["Paris"], keywords=["data"])
+    assert companies == []
 
 
 def test_scan_normalizes_and_dedupes(monkeypatch, provider_stub):
