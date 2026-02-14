@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>JobFinder - Quick Search</title>
+  <title>JobFinder - Search + Email</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@600;700&display=swap" rel="stylesheet" />
@@ -227,10 +227,10 @@
             <div class="logo-badge">
               <img src="/static/jobfinder-image.png" alt="JobFinder logo" class="h-16 w-20 object-cover rounded-2xl">
             </div>
-            <h1 class="title-font text-3xl sm:text-4xl">JobFinder Quick Search</h1>
+            <h1 class="title-font text-3xl sm:text-4xl">JobFinder Search + Email</h1>
           </div>
           <div class="flex items-center gap-2">
-            <a href="/search-email" class="btn btn-sky btn-compact">Search + Email</a>
+            <a href="/search" class="btn btn-sky btn-compact">Quick Search</a>
             <a href="/" class="btn btn-mint btn-compact">Open Full Workflow</a>
           </div>
         </header>
@@ -328,6 +328,37 @@
                   <button id="titleClear" type="button" class="text-slate-500 hover:text-slate-700">Clear</button>
                 </div>
                 <div id="titleSelected" class="min-h-[1.5rem] flex flex-wrap gap-2"></div>
+
+                <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end mt-3">
+                  <div>
+                    <label for="emailInput" class="block text-sm font-semibold text-slate-700">Send results to email</label>
+                    <input
+                      id="emailInput"
+                      type="email"
+                      autocomplete="email"
+                      class="control w-full mt-2"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  <button id="emailBtn" type="button" class="btn btn-mint w-full sm:w-auto" aria-live="polite">
+                    <span id="emailBtnText">Send Email</span>
+                    <span id="emailSpinner"
+                          class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  </button>
+                  <button id="saveAlertBtn" type="button" class="btn btn-sky w-full sm:w-auto" aria-live="polite">
+                    <span id="saveAlertBtnText">Save Alert</span>
+                    <span id="saveAlertSpinner"
+                          class="hidden h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  </button>
+                </div>
+
+                <div class="mt-2">
+                  <div class="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-400">
+                    <span>Saved alerts for this email</span>
+                    <button id="loadAlertsBtn" type="button" class="text-slate-500 hover:text-slate-700">Refresh list</button>
+                  </div>
+                  <div id="alertsList" class="mt-2 min-h-[1.5rem] grid gap-2"></div>
+                </div>
               </form>
 
               <p id="statusMsg" class="text-sm font-semibold mt-2" role="status" aria-live="polite"></p>
@@ -366,6 +397,6 @@
       </div>
     </div>
   </div>
-<script src="/static/search.js?v=10" defer></script>
+<script src="/static/search_email.js?v=2" defer></script>
 </body>
 </html>

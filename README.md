@@ -6,6 +6,7 @@ Jobfinder helps you find open roles by location: discover companies by city/keyw
 
 Includes:
 - **Flask API** (`jobfinder-api`) with `/discover`, `/refresh`, `/scan`, `/jobs`
+- **Saved-search alerts** with `/alerts/searches` and scheduled email delivery
 - **Web UI** (served at `/`) to browse companies and jobs
 - **Scripts** in `scripts/` for local helpers (not used in Render/CI)
 
@@ -61,6 +62,9 @@ Without a SerpAPI key, the UI still works using the bundled seed `static/compani
 - `HOST`, `PORT` - optional Flask bind (defaults to `0.0.0.0:8000`)
 - `AUTO_REFRESH_ON_START` - optional: server-side startup refresh (default true)
 - `ALLOW_REFRESH_ENDPOINT` - optional: enable `POST /refresh` and `POST /debug/refresh` (default false)
+- `ALLOW_ALERTS_RUN_ENDPOINT` - optional: enable `POST /alerts/run` (default false)
+- `SMTP_USER`, `SMTP_PASS` - required for email delivery
+- `SMTP_HOST`, `SMTP_PORT`, `ALERT_EMAIL_FROM` - optional SMTP overrides
 - `.env` supported
 
 Local SerpAPI cache is enabled by default unless `SERPAPI_CACHE_TTL_SECONDS=0` or `SERPAPI_NO_CACHE=true`.
@@ -123,6 +127,11 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
   - `POST /discover` (requires `SERPAPI_API_KEY`)
   - `POST /refresh` -> fetch from providers and upsert into the DB (disabled unless `ALLOW_REFRESH_ENDPOINT=1`)
   - `GET /jobs` -> query jobs from the DB with filters (provider/remote/min_score/max_age_days/cities/keywords/active/limit/offset)
+  - `POST /jobs/email` -> send matching jobs to one email
+  - `POST /alerts/searches` -> create/update saved-search alert
+  - `GET /alerts/searches?email=...` -> list alerts for a user
+  - `DELETE /alerts/searches/<id>?email=...` -> remove alert (unsubscribe)
+  - `POST /alerts/run` -> run due alerts once (disabled unless `ALLOW_ALERTS_RUN_ENDPOINT=1`)
   - `POST /scan` (legacy passthrough to providers; kept for compatibility)
   - `GET /healthz`
 - Start locally: `jobfinder-api` (after installing + setting `SERPAPI_API_KEY` as shown above).
@@ -147,6 +156,22 @@ curl -s -X POST https://<your-service>/refresh \
   -H "Content-Type: application/json" \
   -d '{"cities":["Tel Aviv"],"keywords":["python"],"companies":[{"name":"Acme","provider":"greenhouse","org":"acme"}]}'
 ```
+
+## Saved-search alerts worker
+
+Run one cycle:
+```bash
+jobfinder alerts-run-once --batch-limit 200
+```
+
+Run as loop:
+```bash
+jobfinder alerts-worker --interval-seconds 900 --batch-limit 200
+```
+
+Render cron option:
+- Command: `jobfinder alerts-run-once --batch-limit 200`
+- Use the same DB + SMTP env vars as the web service.
 
 ---
 
