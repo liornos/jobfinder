@@ -918,13 +918,18 @@ def create_saved_search_alert() -> Any:
         return jsonify({"error": "Invalid email address"}), 400
 
     max_age_raw = body.get("max_age_days")
-    if max_age_raw in (None, ""):
+    max_age_days: Optional[int]
+    if max_age_raw is None:
         max_age_days = None
     else:
-        try:
-            max_age_days = int(max_age_raw)
-        except (TypeError, ValueError):
-            return jsonify({"error": "max_age_days must be an integer"}), 400
+        max_age_text = str(max_age_raw).strip()
+        if not max_age_text:
+            max_age_days = None
+        else:
+            try:
+                max_age_days = int(max_age_text)
+            except (TypeError, ValueError):
+                return jsonify({"error": "max_age_days must be an integer"}), 400
 
     only_active = _parse_bool(body.get("only_active"))
     if only_active is None:
