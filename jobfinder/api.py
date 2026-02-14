@@ -6,6 +6,7 @@ import inspect
 import json
 import logging
 import os
+import re
 import threading
 import time
 from pathlib import Path
@@ -29,12 +30,18 @@ except Exception:
 
 from . import db, filtering, pipeline
 from .alerts.companies import load_companies
+from .alerts.emailer_gmail import send_email_gmail
+from .alerts.saved_search_worker import run_due_alerts_once
 from .alerts.state import AlertState
 
 api = Blueprint("api", __name__)
 log = logging.getLogger(__name__)
 _STARTUP_REFRESH_DONE = False
 _STARTUP_REFRESH_LOCK = threading.Lock()
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_EMAIL_DEFAULT_LIMIT = 200
+_EMAIL_LIMIT_CAP = 500
+_EMAIL_MAX_ROWS = 80
 
 
 class _ContextDefaultsFilter(logging.Filter):
@@ -169,6 +176,94 @@ def _parse_bool(value: Any) -> Optional[bool]:
     if sval in {"0", "false", "no", "n", "off"}:
         return False
     return None
+
+
+def _parse_int_clamped(value: Any, *, default: int, min_val: int, max_val: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(min_val, min(max_val, parsed))
+
+
+def _is_valid_email(value: str) -> bool:
+    return bool(_EMAIL_RE.match((value or "").strip()))
+
+
+def _mask_email(value: str) -> str:
+    local, sep, domain = (value or "").partition("@")
+    if not sep or not domain:
+        return "***"
+    if len(local) <= 1:
+        return f"*{sep}{domain}"
+    keep = local[:2] if len(local) > 2 else local[:1]
+    return f"{keep}***{sep}{domain}"
+
+
+def _format_email_job_date(value: Any) -> str:
+    if value is None:
+        return ""
+    raw = str(value).strip()
+    if not raw:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return parsed.date().isoformat()
+    except Exception:
+        return ""
+
+
+def _render_jobs_email_text(
+    *,
+    jobs: List[Dict[str, Any]],
+    cities: List[str],
+    keywords: List[str],
+    title_keywords: List[str],
+) -> str:
+    lines = [
+        "JobFinder search results",
+        f"Generated at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
+        "",
+    ]
+    if cities:
+        lines.append("Cities: " + ", ".join(cities))
+    if title_keywords:
+        lines.append("Title keywords: " + ", ".join(title_keywords))
+    if keywords:
+        lines.append("Keywords: " + ", ".join(keywords))
+    if not (cities or title_keywords or keywords):
+        lines.append("Filters: none")
+
+    lines.extend(["", f"Total matches: {len(jobs)}", ""])
+
+    if not jobs:
+        lines.append("No jobs matched the selected filters.")
+        return "\n".join(lines) + "\n"
+
+    rows = jobs[:_EMAIL_MAX_ROWS]
+    for idx, job in enumerate(rows, start=1):
+        title = str(job.get("title") or "Untitled")
+        company = str(job.get("company") or job.get("company_name") or "Unknown")
+        location = str(job.get("location") or "")
+        provider = str(job.get("provider") or "")
+        url = str(job.get("url") or "")
+        date_text = _format_email_job_date(job.get("created_at"))
+
+        lines.append(f"{idx}. {title} - {company}")
+        if location:
+            lines.append(f"   Location: {location}")
+        if provider:
+            lines.append(f"   Provider: {provider}")
+        if date_text:
+            lines.append(f"   Date: {date_text}")
+        if url:
+            lines.append(f"   Link: {url}")
+        lines.append("")
+
+    if len(jobs) > len(rows):
+        lines.append(f"Only the first {len(rows)} jobs are listed in this email.")
+
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def _run_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
@@ -693,6 +788,240 @@ def jobs() -> Any:
     return jsonify({"results": results, "count": len(results or [])})
 
 
+@api.route("/jobs/email", methods=["POST"])
+def jobs_email() -> Any:
+    body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+
+    email = str(body.get("email") or "").strip()
+    if not email:
+        return jsonify({"error": "email is required"}), 400
+    if not _is_valid_email(email):
+        return jsonify({"error": "Invalid email address"}), 400
+
+    provider = body.get("provider") or None
+    remote = body.get("remote") or "any"
+
+    min_score_raw = body.get("min_score")
+    try:
+        min_score = int(min_score_raw or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "min_score must be an integer"}), 400
+
+    max_age_days_raw = body.get("max_age_days")
+    if max_age_days_raw is None or max_age_days_raw == "":
+        max_age_days = None
+    else:
+        try:
+            max_age_days = int(max_age_days_raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": "max_age_days must be an integer"}), 400
+
+    cities = _parse_list(body.get("cities"))
+    keywords = _parse_list(body.get("keywords"))
+    title_keywords = _parse_list(
+        body.get("title_keywords") or body.get("title") or body.get("fltTitle")
+    )
+    orgs = _parse_list(body.get("orgs") or body.get("companies"))
+    company_names = _parse_list(body.get("company_names"))
+    compute_scores = _parse_bool(body.get("compute_scores"))
+    fast = _parse_bool(body.get("fast"))
+    if fast is True and compute_scores is None:
+        compute_scores = False
+    lite = _parse_bool(body.get("lite")) is True
+
+    active_raw = body.get("active")
+    if active_raw is None:
+        only_active = True
+    else:
+        only_active = str(active_raw).strip().lower() not in {"0", "false", "no"}
+
+    limit_raw = body.get("limit")
+    try:
+        limit = int(limit_raw or _EMAIL_DEFAULT_LIMIT)
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer"}), 400
+    limit = max(1, min(limit, _EMAIL_LIMIT_CAP))
+
+    log.info(
+        "API /jobs/email called | email=%s | provider=%s | remote=%s | min_score=%s | max_age_days=%s | cities=%s | keywords=%s | title_keywords=%s | orgs=%s | company_names=%s | active=%s | limit=%s | compute_scores=%s | lite=%s",
+        _mask_email(email),
+        provider,
+        remote,
+        min_score,
+        max_age_days,
+        cities,
+        keywords,
+        title_keywords,
+        orgs,
+        company_names,
+        only_active,
+        limit,
+        compute_scores,
+        lite,
+    )
+
+    try:
+        results = pipeline.query_jobs(
+            provider=provider,
+            remote=remote,
+            min_score=min_score,
+            max_age_days=max_age_days,
+            cities=cities,
+            keywords=keywords,
+            compute_scores=compute_scores,
+            title_keywords=title_keywords,
+            orgs=orgs,
+            company_names=company_names,
+            only_active=only_active,
+            lite=lite,
+            limit=limit,
+            offset=0,
+        )
+    except Exception as e:
+        log.exception("API /jobs/email query failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+    try:
+        send_email_gmail(
+            subject=f"JobFinder: {len(results)} matching jobs",
+            text=_render_jobs_email_text(
+                jobs=results,
+                cities=cities,
+                keywords=keywords,
+                title_keywords=title_keywords,
+            ),
+            to_addrs=[email],
+        )
+    except KeyError as e:
+        missing = str(e).strip("'")
+        return jsonify({"error": f"SMTP is not configured (missing {missing})"}), 503
+    except Exception as e:
+        log.exception("API /jobs/email send failed: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify(
+        {
+            "sent": True,
+            "count": len(results or []),
+            "message": f"Sent {len(results or [])} jobs to {email}",
+        }
+    )
+
+
+@api.route("/alerts/searches", methods=["POST"])
+def create_saved_search_alert() -> Any:
+    body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+    email = str(body.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "email is required"}), 400
+    if not _is_valid_email(email):
+        return jsonify({"error": "Invalid email address"}), 400
+
+    max_age_raw = body.get("max_age_days")
+    if max_age_raw in (None, ""):
+        max_age_days = None
+    else:
+        try:
+            max_age_days = int(max_age_raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": "max_age_days must be an integer"}), 400
+
+    only_active = _parse_bool(body.get("only_active"))
+    if only_active is None:
+        only_active = True
+
+    with db.session_scope() as session:
+        alert, created = db.upsert_saved_search_alert(
+            session,
+            email=email,
+            name=(str(body.get("name") or "").strip() or None),
+            cities=_parse_list(body.get("cities")),
+            keywords=_parse_list(body.get("keywords")),
+            title_keywords=_parse_list(
+                body.get("title_keywords") or body.get("title") or body.get("fltTitle")
+            ),
+            provider=body.get("provider"),
+            remote=body.get("remote"),
+            min_score=_parse_int_clamped(
+                body.get("min_score"), default=0, min_val=0, max_val=1000
+            ),
+            max_age_days=max_age_days,
+            only_active=only_active,
+            send_limit=_parse_int_clamped(
+                body.get("send_limit") or body.get("limit"),
+                default=_EMAIL_DEFAULT_LIMIT,
+                min_val=1,
+                max_val=_EMAIL_LIMIT_CAP,
+            ),
+            frequency_minutes=_parse_int_clamped(
+                body.get("frequency_minutes"), default=60, min_val=5, max_val=10080
+            ),
+        )
+        payload = db.alert_to_dict(alert)
+
+    return jsonify({"created": created, "alert": payload})
+
+
+@api.route("/alerts/searches", methods=["GET"])
+def list_saved_search_alerts() -> Any:
+    email = str(request.args.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "email is required"}), 400
+    if not _is_valid_email(email):
+        return jsonify({"error": "Invalid email address"}), 400
+
+    include_inactive = _parse_bool(request.args.get("include_inactive")) is True
+    with db.session_scope() as session:
+        rows = db.list_saved_search_alerts(
+            session, email=email, include_inactive=include_inactive
+        )
+        payload = [db.alert_to_dict(row) for row in rows]
+
+    return jsonify({"alerts": payload, "count": len(payload)})
+
+
+@api.route("/alerts/searches/<int:alert_id>", methods=["DELETE"])
+def delete_saved_search_alert(alert_id: int) -> Any:
+    email = (
+        str(request.args.get("email") or "").strip().lower()
+        or str((request.get_json(force=True, silent=True) or {}).get("email") or "")
+        .strip()
+        .lower()
+    )
+    if not email:
+        return jsonify({"error": "email is required"}), 400
+    if not _is_valid_email(email):
+        return jsonify({"error": "Invalid email address"}), 400
+
+    with db.session_scope() as session:
+        deleted = db.delete_saved_search_alert(session, alert_id=alert_id, email=email)
+
+    if not deleted:
+        return jsonify({"error": "Alert not found"}), 404
+    return jsonify({"deleted": True, "id": int(alert_id)})
+
+
+@api.route("/alerts/run", methods=["POST"])
+def run_saved_search_alerts() -> Any:
+    if not _env_bool("ALLOW_ALERTS_RUN_ENDPOINT", False):
+        return (
+            jsonify(
+                {
+                    "error": "Alerts run endpoint disabled",
+                    "hint": "Set ALLOW_ALERTS_RUN_ENDPOINT=1 to enable",
+                }
+            ),
+            403,
+        )
+
+    body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
+    batch_limit = _parse_int_clamped(
+        body.get("batch_limit"), default=200, min_val=1, max_val=1000
+    )
+    summary = run_due_alerts_once(batch_limit=batch_limit)
+    return jsonify({"summary": summary})
+
+
 @api.route("/scan", methods=["POST"])
 def scan() -> Any:
     body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
@@ -796,6 +1125,10 @@ def create_app() -> Flask:
     @app.get("/search")
     def search() -> str:
         return render_template("search.html")
+
+    @app.get("/search-email")
+    def search_email() -> str:
+        return render_template("search_email.html")
 
     @app.get("/healthz")
     def healthz() -> Any:

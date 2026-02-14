@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 from jobfinder import filtering, pipeline
 from jobfinder.alerts.companies import load_companies
+from jobfinder.alerts.saved_search_worker import run_due_alerts_once, run_forever
 
 
 def _csv_list(val: Optional[str]) -> List[str]:
@@ -114,6 +115,20 @@ def _run_debug_providers() -> int:
     return 0
 
 
+def _run_alerts_once(args: argparse.Namespace) -> int:
+    summary = run_due_alerts_once(batch_limit=int(args.batch_limit or 200))
+    print(json.dumps({"summary": summary}, ensure_ascii=False))
+    return 0
+
+
+def _run_alerts_worker(args: argparse.Namespace) -> int:
+    run_forever(
+        interval_seconds=int(args.interval_seconds or 900),
+        batch_limit=int(args.batch_limit or 200),
+    )
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="jobfinder",
@@ -150,6 +165,26 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("debug-providers", help="Print provider import diagnostics")
 
+    alerts_once_p = sub.add_parser(
+        "alerts-run-once", help="Run due saved-search alerts one time"
+    )
+    alerts_once_p.add_argument(
+        "--batch-limit", type=int, default=200, help="Max alerts to process"
+    )
+
+    alerts_worker_p = sub.add_parser(
+        "alerts-worker", help="Run saved-search alert worker loop"
+    )
+    alerts_worker_p.add_argument(
+        "--interval-seconds",
+        type=int,
+        default=900,
+        help="Worker poll interval in seconds",
+    )
+    alerts_worker_p.add_argument(
+        "--batch-limit", type=int, default=200, help="Max alerts to process per loop"
+    )
+
     return parser
 
 
@@ -164,6 +199,10 @@ def main(argv: Optional[List[str]] = None) -> int:
             return _run_refresh(args)
         if args.command == "debug-providers":
             return _run_debug_providers()
+        if args.command == "alerts-run-once":
+            return _run_alerts_once(args)
+        if args.command == "alerts-worker":
+            return _run_alerts_worker(args)
     except Exception as exc:
         logging.exception("jobfinder %s failed: %s", args.command, exc)
         return 1
