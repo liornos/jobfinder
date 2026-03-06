@@ -141,12 +141,22 @@ The UI test opens `/?e2e=1` to disable auto refresh on startup for deterministic
 ## Scheduled refresh (Render Cron Job)
 
 Keep the web service lightweight (UI + DB queries) and run refresh as a scheduled job
-by calling the API endpoint (requires `ALLOW_REFRESH_ENDPOINT=1`):
+by calling the API endpoint (requires `ALLOW_REFRESH_ENDPOINT=1`).
+
+`POST /refresh` now supports an empty `companies` payload and will fall back to
+`/static/companies.json` automatically, so a cron job can use a minimal body:
 ```bash
 curl -s -X POST https://<your-service>/refresh \
   -H "Content-Type: application/json" \
-  -d '{"cities":["Tel Aviv"],"keywords":["python"],"companies":[{"name":"Acme","provider":"greenhouse","org":"acme"}]}'
+  -d '{"cities":["Tel Aviv","Herzliya"],"keywords":["software"]}'
 ```
+
+Render checklist:
+- Web service env vars:
+  - `ALLOW_REFRESH_ENDPOINT=1`
+  - `AUTO_REFRESH_ON_START=true` (optional warm-start refresh; cron is still required for ongoing updates)
+- Cron job schedule: every `1-3` hours is usually enough.
+- Verify from logs after each run: `API /refresh summary=...` and increasing recent `created_at` in `/jobs`.
 
 ---
 

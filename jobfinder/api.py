@@ -158,6 +158,24 @@ def _refresh_endpoint_enabled() -> bool:
     return _env_bool("ALLOW_REFRESH_ENDPOINT", False)
 
 
+def _resolve_refresh_companies(raw_companies: Any) -> List[Dict[str, Any]]:
+    if isinstance(raw_companies, list) and raw_companies:
+        return raw_companies
+    try:
+        companies = load_companies()
+    except Exception as exc:
+        log.warning("Refresh fallback skipped: failed to load seed companies: %s", exc)
+        return []
+    if companies:
+        log.info(
+            "Refresh fallback: using seed companies from /static/companies.json | companies=%d",
+            len(companies),
+        )
+    else:
+        log.info("Refresh fallback skipped: no seed companies found")
+    return companies or []
+
+
 def _parse_bool(value: Any) -> Optional[bool]:
     if value is None:
         return None
@@ -525,7 +543,7 @@ def refresh() -> Any:
         )
 
     body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
-    companies = body.get("companies") or []
+    companies = _resolve_refresh_companies(body.get("companies"))
     cities = _parse_list(body.get("cities"))
     keywords = _parse_list(body.get("keywords"))
     provider = body.get("provider") or None
@@ -564,7 +582,7 @@ def debug_refresh() -> Any:
         )
 
     body: Dict[str, Any] = request.get_json(force=True, silent=True) or {}
-    companies = body.get("companies") or []
+    companies = _resolve_refresh_companies(body.get("companies"))
     cities = _parse_list(body.get("cities"))
     keywords = _parse_list(body.get("keywords"))
     provider = body.get("provider") or None
