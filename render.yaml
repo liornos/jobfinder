@@ -9,3 +9,5 @@ services:
         value: "1"
       - key: AUTO_REFRESH_ON_START
         value: "true"
+      - key: ALLOW_REFRESH_ENDPOINT
+        value: "true"

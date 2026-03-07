@@ -39,6 +39,48 @@ def test_refresh_inserts_jobs(client, provider_stub):
     assert {r["id"] for r in data["results"]} == {"1", "2"}
 
 
+def test_refresh_without_companies_uses_seed_fallback(
+    client, provider_stub, monkeypatch
+):
+    provider_stub(
+        {
+            "greenhouse": {
+                "acme": [
+                    {
+                        "id": "1",
+                        "title": "Data Engineer",
+                        "location": "Tel Aviv",
+                        "url": "https://gh/1",
+                        "remote": False,
+                    }
+                ]
+            }
+        }
+    )
+
+    import jobfinder.api as api_mod
+
+    monkeypatch.setattr(
+        api_mod,
+        "load_companies",
+        lambda *args, **kwargs: [
+            {"name": "Acme", "org": "acme", "provider": "greenhouse"}
+        ],
+    )
+
+    refresh_resp = client.post("/refresh", json={"cities": ["Tel Aviv"]})
+    assert refresh_resp.status_code == 200
+    summary = refresh_resp.get_json()["summary"]
+    assert summary["companies"] == 1
+    assert summary["jobs_written"] == 1
+
+    jobs_resp = client.get("/jobs", query_string={"provider": "greenhouse"})
+    assert jobs_resp.status_code == 200
+    data = jobs_resp.get_json()
+    assert data["count"] == 1
+    assert data["results"][0]["id"] == "1"
+
+
 def test_debug_refresh_includes_report(client, provider_stub):
     provider_stub(
         {
