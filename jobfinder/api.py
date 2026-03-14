@@ -38,6 +38,7 @@ api = Blueprint("api", __name__)
 log = logging.getLogger(__name__)
 _STARTUP_REFRESH_DONE = False
 _STARTUP_REFRESH_LOCK = threading.Lock()
+_STARTUP_REFRESH_STATE_LOCK = threading.Lock()
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _EMAIL_DEFAULT_LIMIT = 200
 _EMAIL_LIMIT_CAP = 500
@@ -106,6 +107,21 @@ class AppConfig:
     env: Dict[str, Any]
 
 
+@dataclass(slots=True)
+class StartupRefreshState:
+    enabled: bool = False
+    attempted: bool = False
+    in_progress: bool = False
+    completed: bool = False
+    last_started_at: Optional[str] = None
+    last_finished_at: Optional[str] = None
+    last_error: Optional[str] = None
+    last_summary: Optional[Dict[str, Any]] = None
+
+
+_STARTUP_REFRESH_STATE = StartupRefreshState()
+
+
 def load_config(path: Optional[str] = None) -> AppConfig:
     load_dotenv()
     cfg_path = Path(path) if path else None
@@ -159,6 +175,32 @@ def _env_bool(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _update_startup_refresh_state(**changes: Any) -> None:
+    with _STARTUP_REFRESH_STATE_LOCK:
+        for key, value in changes.items():
+            setattr(_STARTUP_REFRESH_STATE, key, value)
+
+
+def _startup_refresh_payload() -> Dict[str, Any]:
+    with _STARTUP_REFRESH_STATE_LOCK:
+        state = {
+            "enabled": _STARTUP_REFRESH_STATE.enabled,
+            "attempted": _STARTUP_REFRESH_STATE.attempted,
+            "in_progress": _STARTUP_REFRESH_STATE.in_progress,
+            "completed": _STARTUP_REFRESH_STATE.completed,
+            "last_started_at": _STARTUP_REFRESH_STATE.last_started_at,
+            "last_finished_at": _STARTUP_REFRESH_STATE.last_finished_at,
+            "last_error": _STARTUP_REFRESH_STATE.last_error,
+            "last_summary": _STARTUP_REFRESH_STATE.last_summary,
+        }
+    state["pending"] = bool(state["enabled"] and state["in_progress"])
+    return state
 
 
 def _refresh_endpoint_enabled() -> bool:
@@ -285,28 +327,82 @@ def _render_jobs_email_text(
 
 
 def _run_startup_refresh(*, cities: List[str], keywords: List[str]) -> None:
+    _update_startup_refresh_state(
+        attempted=True,
+        in_progress=True,
+        completed=False,
+        last_started_at=_utc_now_iso(),
+        last_finished_at=None,
+        last_error=None,
+        last_summary=None,
+    )
     try:
         companies = load_companies()
     except Exception as exc:
         log.warning("Auto refresh skipped: %s", exc)
+        _update_startup_refresh_state(
+            in_progress=False,
+            completed=True,
+            last_finished_at=_utc_now_iso(),
+            last_error=str(exc),
+            last_summary={"companies": 0, "jobs_seen": 0, "jobs_written": 0},
+        )
         return
 
     if not companies:
         log.info("Auto refresh skipped: no companies found")
+        _update_startup_refresh_state(
+            in_progress=False,
+            completed=True,
+            last_finished_at=_utc_now_iso(),
+            last_summary={"companies": 0, "jobs_seen": 0, "jobs_written": 0},
+        )
         return
 
     log.info("Auto refresh starting | companies=%d", len(companies))
-    summary = pipeline.refresh(
-        companies=companies, cities=cities or None, keywords=keywords or None
-    )
+    try:
+        summary = pipeline.refresh(
+            companies=companies, cities=cities or None, keywords=keywords or None
+        )
+    except Exception as exc:
+        log.exception("Auto refresh failed: %s", exc)
+        _update_startup_refresh_state(
+            in_progress=False,
+            completed=True,
+            last_finished_at=_utc_now_iso(),
+            last_error=str(exc),
+            last_summary={
+                "companies": len(companies),
+                "jobs_seen": 0,
+                "jobs_written": 0,
+            },
+        )
+        return
+
     log.info("Auto refresh finished | summary=%s", summary)
+    _update_startup_refresh_state(
+        in_progress=False,
+        completed=True,
+        last_finished_at=_utc_now_iso(),
+        last_summary=summary,
+    )
 
 
 def _maybe_startup_refresh(
     *, cities: List[str], keywords: List[str], enabled: bool
 ) -> None:
     global _STARTUP_REFRESH_DONE
+    _update_startup_refresh_state(enabled=enabled)
     if not enabled:
+        _update_startup_refresh_state(
+            attempted=False,
+            in_progress=False,
+            completed=False,
+            last_started_at=None,
+            last_finished_at=None,
+            last_error=None,
+            last_summary=None,
+        )
         return
 
     with _STARTUP_REFRESH_LOCK:
@@ -803,7 +899,13 @@ def jobs() -> Any:
         len(results or []),
         json.dumps(preview),
     )
-    return jsonify({"results": results, "count": len(results or [])})
+    return jsonify(
+        {
+            "results": results,
+            "count": len(results or []),
+            "startup_refresh": _startup_refresh_payload(),
+        }
+    )
 
 
 @api.route("/jobs/email", methods=["POST"])

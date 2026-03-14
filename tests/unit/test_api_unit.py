@@ -241,3 +241,33 @@ def test_alerts_run_endpoint_disabled_by_default(client):
     resp = client.post("/alerts/run", json={})
     assert resp.status_code == 403
     assert "disabled" in resp.get_json()["error"].lower()
+
+
+def test_jobs_includes_startup_refresh_metadata(monkeypatch, client):
+    import jobfinder.api as api_mod
+
+    monkeypatch.setattr(pipeline, "query_jobs", lambda **_: [])
+    monkeypatch.setattr(
+        api_mod,
+        "_startup_refresh_payload",
+        lambda: {
+            "enabled": True,
+            "attempted": True,
+            "in_progress": True,
+            "completed": False,
+            "last_started_at": "2026-03-14T12:00:00+00:00",
+            "last_finished_at": None,
+            "last_error": None,
+            "last_summary": None,
+            "pending": True,
+        },
+    )
+
+    resp = client.get("/jobs", query_string={"limit": 5})
+
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["count"] == 0
+    assert data["results"] == []
+    assert data["startup_refresh"]["pending"] is True
+    assert data["startup_refresh"]["in_progress"] is True

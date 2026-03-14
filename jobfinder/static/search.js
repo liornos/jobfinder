@@ -12,6 +12,9 @@
     inFlight: false,
     pendingSearch: false,
     pendingForce: false,
+    startupRetryCount: 0,
+    startupRetryTimer: null,
+    startupRefreshPending: false,
   };
 
   const CITY_ALL_VALUE = "__all__";
@@ -19,6 +22,7 @@
   const DEFAULT_LIMIT = 200;
   const BASE_LIMITS = [600, 1200, 2000];
   const TARGET_RESULTS = 40;
+  const STARTUP_RETRY_DELAYS_MS = [1000, 1500, 2500, 4000, 6000, 10000, 15000];
 
   const cityState = {
     selected: [],
@@ -357,6 +361,8 @@
         ? `Filtered ${state.jobs.length} jobs`
         : `Loaded ${state.jobs.length} jobs`;
       setStatus(msg, "ok");
+    } else if (state.startupRefreshPending) {
+      setStatus("Startup refresh is still running. Retrying shortly...", "info");
     } else {
       setStatus("No jobs found", "info");
     }
@@ -406,6 +412,23 @@
     if (countEl) countEl.textContent = String(state.jobs.length);
   }
 
+  function clearStartupRetry() {
+    if (state.startupRetryTimer) clearTimeout(state.startupRetryTimer);
+    state.startupRetryTimer = null;
+    state.startupRetryCount = 0;
+  }
+
+  function scheduleStartupRetry() {
+    if (state.startupRetryTimer) return;
+    if (state.startupRetryCount >= STARTUP_RETRY_DELAYS_MS.length) return;
+    const delay = STARTUP_RETRY_DELAYS_MS[state.startupRetryCount];
+    state.startupRetryCount += 1;
+    state.startupRetryTimer = setTimeout(() => {
+      state.startupRetryTimer = null;
+      void fetchJobs({ forceServer: true });
+    }, delay);
+  }
+
   function nextBaseLimit(current) {
     for (const lim of BASE_LIMITS) {
       if (lim > current) return lim;
@@ -442,8 +465,18 @@
       state.baseCitiesKey = ctx.citiesKey;
       state.baseLimit = limit;
       state.baseFetched = true;
+      const startupRefresh = data?.startup_refresh || {};
+      state.startupRefreshPending = startupRefresh?.pending === true;
+      if (state.baseJobs.length || !state.startupRefreshPending) {
+        clearStartupRetry();
+      } else {
+        setStatus("Startup refresh is still running. Retrying shortly...", "info");
+        scheduleStartupRetry();
+      }
       return true;
     } catch (e) {
+      state.startupRefreshPending = false;
+      clearStartupRetry();
       setStatus("Failed to load jobs", "error");
       return false;
     }
