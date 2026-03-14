@@ -102,6 +102,17 @@ def test_search_email_route_renders_page(client):
     assert b'id="emailInput"' in resp.data
 
 
+def test_search_route_renders_quick_search_filters(client):
+    resp = client.get("/search")
+    assert resp.status_code == 200
+    assert b'id="keywordInput"' in resp.data
+    assert b'id="citySelect"' in resp.data
+    assert b'id="titleSelect"' in resp.data
+    assert b'id="remoteSelect"' in resp.data
+    assert b'id="providerSelect"' in resp.data
+    assert b'id="onlyNewToggle"' in resp.data
+
+
 def test_jobs_email_sends_filtered_results(monkeypatch, client):
     captured_query: Dict[str, Any] = {}
     captured_email: Dict[str, Any] = {}
