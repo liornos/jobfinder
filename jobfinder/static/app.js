@@ -209,7 +209,11 @@
     initialized: false,
     scanInFlight: false,
     scanAbort: null,
+    startupRetryCount: 0,
+    startupRetryTimer: null,
   };
+
+  const STARTUP_RETRY_DELAYS_MS = [1000, 1500, 2500, 4000, 6000, 10000, 15000];
 
   const CITY_ALL_VALUE = "__all__";
   const CITY_ALL_LABEL = "Israel - All";
@@ -658,7 +662,24 @@
     return params;
   }
 
-  async function loadJobsFromDB({ afterRefresh = false, silent = false } = {}) {
+  function clearStartupRetry() {
+    if (state.startupRetryTimer) clearTimeout(state.startupRetryTimer);
+    state.startupRetryTimer = null;
+    state.startupRetryCount = 0;
+  }
+
+  function scheduleStartupRetry() {
+    if (state.startupRetryTimer) return;
+    if (state.startupRetryCount >= STARTUP_RETRY_DELAYS_MS.length) return;
+    const delay = STARTUP_RETRY_DELAYS_MS[state.startupRetryCount];
+    state.startupRetryCount += 1;
+    state.startupRetryTimer = setTimeout(() => {
+      state.startupRetryTimer = null;
+      loadJobsFromDB({ silent: true, startupRetry: true });
+    }, delay);
+  }
+
+  async function loadJobsFromDB({ afterRefresh = false, silent = false, startupRetry = false } = {}) {
     const params = buildJobsQuery();
     const url = `/jobs?${params.toString()}`;
 
@@ -676,6 +697,7 @@
       }
 
       state.jobs = data?.results || [];
+      const startupRefresh = data?.startup_refresh || {};
       const curIds = new Set(state.jobs.map(j => j?.id).filter(Boolean));
       const prev = new Set(loadLocal("lastScanIds", []));
       state.lastScanIds = prev;
@@ -689,12 +711,18 @@
 
       state.page = 1;
       renderJobs();
+      if (state.jobs.length || !startupRefresh?.pending) {
+        clearStartupRetry();
+      } else if (!afterRefresh) {
+        scheduleStartupRetry();
+      }
       if (!silent) setScanMsg(`Loaded ${state.jobs.length} jobs`, "ok");
     } catch (e) {
       if (reqId !== state.jobsReqId) return;
       if (e?.name === "AbortError") return;
       if (state.jobsAbort?.signal?.aborted) return;
       err("Jobs fetch error", e);
+      if (!startupRetry) clearStartupRetry();
       if (!silent) setScanMsg("Failed to load jobs", "error");
     }
   }
@@ -846,6 +874,7 @@
   }
 
   function clearAll() {
+    clearStartupRetry();
     state.companies = [];
     state.jobs = [];
     state.filtered = [];
